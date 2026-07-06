@@ -5,6 +5,11 @@ import '../../ui/theme.dart';
 /// The Stage-1 toolset. Each tool carries its visual identity so cards,
 /// headers and history entries stay consistent everywhere.
 enum Tool {
+  viewer(
+    'Read PDF',
+    'Fast, private viewer',
+    ToolStyle([Color(0xFF5E35B1), Color(0xFF9C7BD8)], Icons.menu_book_rounded),
+  ),
   merge(
     'Merge PDF',
     'Combine PDFs into one',

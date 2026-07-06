@@ -14,12 +14,15 @@ import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../split/split_screen.dart';
+import '../viewer/viewer_launcher.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   Widget _screenFor(Tool tool) {
     switch (tool) {
+      case Tool.viewer:
+        return const ViewerLauncherScreen();
       case Tool.merge:
         return const MergeScreen();
       case Tool.split:
@@ -40,7 +43,13 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    const pdfTools = [Tool.merge, Tool.split, Tool.organize, Tool.pdfToImages];
+    const pdfTools = [
+      Tool.viewer,
+      Tool.merge,
+      Tool.split,
+      Tool.organize,
+      Tool.pdfToImages,
+    ];
     const createTools = [Tool.scanToPdf, Tool.imagesToPdf, Tool.ocr];
 
     return Scaffold(

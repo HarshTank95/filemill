@@ -11,6 +11,7 @@ import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../split/split_screen.dart';
+import '../viewer/viewer_screen.dart';
 
 /// Landing screen when files are shared to FileMill from another app:
 /// shows what arrived and the tools that make sense for it.
@@ -176,6 +177,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
     }
     if (_pdfs.length == 1) {
       final pdf = _pdfs.first;
+      add(Tool.viewer, 'Read ${pdf.name}',
+          () => _go(ViewerScreen(path: pdf.path, name: pdf.name)));
       add(Tool.split, 'Extract pages from ${pdf.name}',
           () => _go(SplitScreen(initial: pdf)));
       add(Tool.organize, 'Reorder, rotate or delete pages',

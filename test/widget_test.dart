@@ -19,6 +19,7 @@ void main() {
 
     expect(find.text('FileMill'), findsOneWidget);
     expect(find.textContaining('Zero uploads'), findsOneWidget);
+    expect(find.text('Read PDF'), findsOneWidget);
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('Split PDF'), findsOneWidget);
     expect(find.text('Organize'), findsOneWidget);

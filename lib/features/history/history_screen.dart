@@ -6,6 +6,8 @@ import '../../core/models/tool.dart';
 import '../../core/services/file_service.dart';
 import '../../core/services/history_service.dart';
 import '../../ui/common.dart';
+import '../../ui/motion.dart';
+import '../viewer/viewer_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -111,6 +113,16 @@ class HistoryTile extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (entry.fileName.toLowerCase().endsWith('.pdf'))
+              ListTile(
+                leading: const Icon(Icons.menu_book_rounded),
+                title: const Text('Read'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.of(context).push(Motion.fadeThrough(
+                      ViewerScreen(path: entry.path, name: entry.fileName)));
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.share_rounded),
               title: const Text('Share'),

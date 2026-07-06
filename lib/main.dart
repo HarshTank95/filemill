@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/services/history_service.dart';
+import 'core/services/open_intent.dart';
 import 'core/services/share_intake.dart';
 import 'features/home/home_screen.dart';
 import 'features/share/share_intake_screen.dart';
+import 'features/viewer/viewer_screen.dart';
 import 'ui/motion.dart';
 import 'ui/theme.dart';
 
@@ -34,6 +36,11 @@ class _FileMillAppState extends State<FileMillApp> {
     ShareIntake.init((files) {
       _navigatorKey.currentState?.push(
         Motion.fadeThrough(ShareIntakeScreen(shared: files)),
+      );
+    });
+    OpenIntent.init((path, name) {
+      _navigatorKey.currentState?.push(
+        Motion.fadeThrough(ViewerScreen(path: path, name: name)),
       );
     });
   }

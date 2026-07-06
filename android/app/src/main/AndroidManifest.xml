@@ -30,6 +30,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- "Open with" entry: FileMill as a PDF viewer -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" android:scheme="content" />
+                <data android:mimeType="application/pdf" android:scheme="file" />
+            </intent-filter>
+
             <!-- Share-sheet entry: single PDF or image shared to FileMill -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
