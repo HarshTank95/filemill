@@ -10,6 +10,7 @@ import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
+import '../protect/protect_screen.dart';
 import '../split/split_screen.dart';
 import '../viewer/viewer_screen.dart';
 
@@ -187,6 +188,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(PdfToImagesScreen(initial: pdf)));
       add(Tool.ocr, 'Recognize text on every page',
           () => _go(OcrScreen(initialPdf: pdf)));
+      add(Tool.protect, 'Add or remove a password',
+          () => _go(ProtectScreen(initial: pdf)));
       add(Tool.merge, 'Combine with more PDFs',
           () => _go(MergeScreen(initial: [pdf])));
     }

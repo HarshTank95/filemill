@@ -204,25 +204,33 @@ Future<T?> runBusy<T>(
     nav.pop();
     HapticFeedback.mediumImpact();
     return result;
-  } catch (e) {
+  } catch (e, stack) {
     nav.pop();
     HapticFeedback.heavyImpact();
-    messenger.showSnackBar(SnackBar(
-      content: Text('Something went wrong: ${_friendly(e)}'),
-    ));
+    // Full details go to the log only — never leak internals to the UI.
+    debugPrint('FileMill task failed: $e\n$stack');
+    messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
     return null;
   }
 }
 
-String _friendly(Object e) {
+/// Short, human message for any failure. Raw exception text (class names,
+/// paths, internals) must never reach the screen.
+String friendlyError(Object e) {
   final s = e.toString();
-  if (s.contains('password') || s.contains('encrypted')) {
-    return 'this PDF is password-protected.';
+  if (s.contains('Incorrect password')) {
+    return 'Incorrect password — try again.';
+  }
+  if (s.contains('password') || s.contains('encrypt')) {
+    return 'This PDF is password-protected.';
+  }
+  if (s.contains('Unsupported image')) {
+    return 'This image format isn\'t supported.';
   }
   if (s.contains('Cannot open') || s.contains('format')) {
-    return 'this file could not be read.';
+    return 'This file could not be read.';
   }
-  return s.length > 120 ? '${s.substring(0, 120)}…' : s;
+  return 'Something went wrong. Please try again.';
 }
 
 String humanSize(int bytes) {

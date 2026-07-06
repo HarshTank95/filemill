@@ -11,6 +11,7 @@ import '../../ui/motion.dart';
 import '../merge/merge_screen.dart';
 import '../result/result_screen.dart';
 import '../shared/page_grid.dart';
+import '../shared/unlock_helper.dart';
 
 class SplitScreen extends StatefulWidget {
   final PickedItem? initial;
@@ -44,10 +45,14 @@ class _SplitScreenState extends State<SplitScreen> {
   }
 
   Future<void> _open(PickedItem item) async {
+    if (!await ensureUnlocked(context, item)) return;
+    if (!mounted) return;
     final doc = await runBusy<RenderedDoc>(
       context,
       label: 'Opening ${item.name}…',
-      task: () => RenderedDoc.openFile(item.path),
+      task: () async => item.unlockedBytes != null
+          ? RenderedDoc.openData(item.unlockedBytes!)
+          : RenderedDoc.openFile(item.path),
     );
     if (doc == null) return;
     _cache?.doc.close();

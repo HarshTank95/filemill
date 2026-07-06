@@ -12,6 +12,7 @@ import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../merge/merge_screen.dart';
 import '../scan/crop_screen.dart';
+import '../shared/unlock_helper.dart';
 
 class OcrScreen extends StatelessWidget {
   final PickedItem? initialPdf;
@@ -131,13 +132,21 @@ class OcrScreen extends StatelessWidget {
   }
 
   Future<void> _runPdf(BuildContext context, PickedItem item) async {
+    if (!await ensureUnlocked(context, item)) return;
+    if (!context.mounted) return;
+    // The rasterizer works from a file path; decrypted PDFs go via temp.
+    var path = item.path;
+    if (item.unlockedBytes != null) {
+      path = (await FileService.writeTemp(item.name, item.unlockedBytes!)).path;
+    }
+    if (!context.mounted) return;
     final status = ValueNotifier<String?>(null);
     final texts = await runBusy<List<String>>(
       context,
       label: 'Reading text on-device…',
       status: status,
       task: () => OcrService.pdfText(
-        item.path,
+        path,
         onProgress: (done, total) => status.value = 'Page $done of $total',
       ),
     );

@@ -7,6 +7,7 @@ import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../result/result_screen.dart';
+import '../shared/unlock_helper.dart';
 
 class MergeScreen extends StatefulWidget {
   final List<PickedItem> initial;
@@ -22,7 +23,17 @@ class _MergeScreenState extends State<MergeScreen> {
   Future<void> _add() async {
     final picked = await FileService.pickPdfs();
     if (picked.isEmpty) return;
-    setState(() => _items.addAll(picked));
+    for (final item in picked) {
+      if (!mounted) return;
+      // Protected PDFs must be unlocked up front or the merge would fail.
+      if (await ensureUnlocked(context, item)) {
+        setState(() => _items.add(item));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Skipped locked file ${item.name}')),
+        );
+      }
+    }
   }
 
   Future<void> _merge() async {

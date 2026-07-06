@@ -5,6 +5,7 @@ import 'package:pdfx/pdfx.dart' as px;
 
 import '../../core/models/tool.dart';
 import '../../core/services/file_service.dart';
+import '../../core/services/pdf_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
@@ -25,11 +26,15 @@ class ViewerScreen extends StatefulWidget {
 }
 
 class _ViewerScreenState extends State<ViewerScreen> {
-  late final px.PdfControllerPinch _controller;
+  late px.PdfControllerPinch _controller;
   int _page = 1;
   int _total = 0;
   String? _error;
+  bool _locked = false;
+  bool _unlocking = false;
+  String? _passwordError;
   bool _chromeVisible = true;
+  final _password = TextEditingController();
 
   @override
   void initState() {
@@ -42,7 +47,54 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _password.dispose();
     super.dispose();
+  }
+
+  /// The native renderer can't open encrypted PDFs — if that's why we
+  /// failed, ask for the password instead of showing an error.
+  Future<void> _handleOpenError(Object error) async {
+    debugPrint('FileMill viewer failed to open ${widget.name}: $error');
+    var locked = false;
+    try {
+      locked =
+          await PdfService.isProtected(await File(widget.path).readAsBytes());
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      if (locked) {
+        _locked = true;
+      } else {
+        _error =
+            'This PDF could not be opened. It may be corrupted or use an unsupported format.';
+      }
+    });
+  }
+
+  Future<void> _unlock() async {
+    setState(() {
+      _unlocking = true;
+      _passwordError = null;
+    });
+    try {
+      final src = await File(widget.path).readAsBytes();
+      final unlocked = await PdfService.unlock(src, _password.text);
+      if (!mounted) return;
+      _controller.dispose();
+      setState(() {
+        _controller = px.PdfControllerPinch(
+          document: px.PdfDocument.openData(unlocked),
+        );
+        _locked = false;
+        _unlocking = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _unlocking = false;
+        _passwordError = friendlyError(e);
+      });
+    }
   }
 
   Future<void> _openTools() async {
@@ -136,7 +188,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
               title: 'Could not open PDF',
               message: _error!,
             )
-          : Stack(
+          : _locked
+              ? _LockedView(
+                  name: widget.name,
+                  controller: _password,
+                  busy: _unlocking,
+                  errorText: _passwordError,
+                  onUnlock: _unlock,
+                )
+              : Stack(
               children: [
                 GestureDetector(
                   onTap: () =>
@@ -148,8 +208,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     onDocumentLoaded: (doc) =>
                         setState(() => _total = doc.pagesCount),
                     onPageChanged: (page) => setState(() => _page = page),
-                    onDocumentError: (e) =>
-                        setState(() => _error = e.toString()),
+                    onDocumentError: _handleOpenError,
                   ),
                 ),
                 if (_total > 0)
@@ -180,6 +239,89 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// Password gate shown when the opened PDF is encrypted.
+class _LockedView extends StatelessWidget {
+  final String name;
+  final TextEditingController controller;
+  final bool busy;
+  final String? errorText;
+  final VoidCallback onUnlock;
+  const _LockedView({
+    required this.name,
+    required this.controller,
+    required this.busy,
+    required this.errorText,
+    required this.onUnlock,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.lock_rounded, size: 38, color: scheme.primary),
+            ),
+            const SizedBox(height: 18),
+            Text('This PDF is protected',
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: controller,
+              obscureText: true,
+              autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              onSubmitted: (_) => busy ? null : onUnlock(),
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(Icons.key_rounded),
+                errorText: errorText,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+              ),
+              onPressed: busy ? null : onUnlock,
+              icon: busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : const Icon(Icons.lock_open_rounded),
+              label: Text(busy ? 'Unlocking…' : 'Open'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

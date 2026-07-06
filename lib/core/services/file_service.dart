@@ -13,9 +13,15 @@ class PickedItem {
   final String name;
   final String path;
   final int size;
-  const PickedItem({required this.name, required this.path, required this.size});
 
-  Future<Uint8List> readBytes() => File(path).readAsBytes();
+  /// Decrypted content, set once the user unlocks a password-protected PDF
+  /// (see ensureUnlocked). All processing then reads this instead of disk.
+  Uint8List? unlockedBytes;
+
+  PickedItem({required this.name, required this.path, required this.size});
+
+  Future<Uint8List> readBytes() async =>
+      unlockedBytes ?? await File(path).readAsBytes();
 
   static Future<PickedItem> fromPath(String path, {String? name}) async {
     final f = File(path);

@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
+
+import 'package:filemill/core/services/pdf_service.dart';
 import 'package:filemill/core/services/scan_processor.dart';
 import 'package:filemill/features/home/home_screen.dart';
 import 'package:filemill/features/shared/page_grid.dart';
@@ -27,6 +30,7 @@ void main() {
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('Split PDF'), findsOneWidget);
     expect(find.text('Organize'), findsOneWidget);
+    expect(find.text('Protect PDF'), findsOneWidget);
     expect(find.text('PDF → Images'), findsOneWidget);
     expect(find.text('Images → PDF'), findsOneWidget);
     expect(find.text('Scan → PDF'), findsOneWidget);
@@ -62,6 +66,26 @@ void main() {
     final detected = await ScanProcessor.detect(jpg);
     expect(detected.corners.length, 4);
     expect(detected.aspect, closeTo(1.5, 0.01));
+  });
+
+  test('protect/unlock round-trip with AES-256', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add().graphics.drawString(
+        'FileMill', sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 12));
+    final plain = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    expect(await PdfService.isProtected(plain), isFalse);
+
+    final locked = await PdfService.protect(plain, 'secret123');
+    expect(await PdfService.isProtected(locked), isTrue);
+
+    await expectLater(
+        PdfService.unlock(locked, 'wrong-password'), throwsException);
+
+    final unlocked = await PdfService.unlock(locked, 'secret123');
+    expect(await PdfService.isProtected(unlocked), isFalse);
+    expect(await PdfService.pageCount(unlocked), 1);
   });
 
   test('range parser handles lists, ranges and clamping', () {

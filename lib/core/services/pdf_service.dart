@@ -31,6 +31,64 @@ class PdfService {
       ]),
     );
   }
+
+  /// True if the document requires a password to open.
+  static Future<bool> isProtected(Uint8List bytes) =>
+      compute(_isProtected, bytes);
+
+  /// Encrypts with AES-256; the same password opens and owns the file.
+  static Future<Uint8List> protect(Uint8List bytes, String password) =>
+      compute(_protect, _PasswordArgs(bytes, password));
+
+  /// Removes encryption from a protected document. Throws with a friendly
+  /// message when the password is wrong.
+  static Future<Uint8List> unlock(Uint8List bytes, String password) =>
+      compute(_unlock, _PasswordArgs(bytes, password));
+}
+
+class _PasswordArgs {
+  final Uint8List bytes;
+  final String password;
+  const _PasswordArgs(this.bytes, this.password);
+}
+
+bool _isProtected(Uint8List bytes) {
+  try {
+    PdfDocument(inputBytes: bytes).dispose();
+    return false;
+  } catch (e) {
+    final message = e.toString().toLowerCase();
+    if (message.contains('password') || message.contains('encrypt')) {
+      return true;
+    }
+    rethrow;
+  }
+}
+
+Future<Uint8List> _protect(_PasswordArgs args) async {
+  final doc = PdfDocument(inputBytes: args.bytes);
+  doc.security
+    ..userPassword = args.password
+    ..ownerPassword = args.password
+    ..algorithm = PdfEncryptionAlgorithm.aesx256Bit;
+  final out = Uint8List.fromList(await doc.save());
+  doc.dispose();
+  return out;
+}
+
+Future<Uint8List> _unlock(_PasswordArgs args) async {
+  final PdfDocument doc;
+  try {
+    doc = PdfDocument(inputBytes: args.bytes, password: args.password);
+  } catch (_) {
+    throw Exception('Incorrect password — try again.');
+  }
+  doc.security
+    ..userPassword = ''
+    ..ownerPassword = '';
+  final out = Uint8List.fromList(await doc.save());
+  doc.dispose();
+  return out;
 }
 
 class _RebuildArgs {

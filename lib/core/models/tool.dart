@@ -25,6 +25,11 @@ enum Tool {
     'Reorder · rotate · delete pages',
     ToolStyle([Color(0xFFF4511E), Color(0xFFFF8A65)], Icons.dashboard_customize_rounded),
   ),
+  protect(
+    'Protect PDF',
+    'Lock or unlock with a password',
+    ToolStyle([Color(0xFFD81B60), Color(0xFFF0709A)], Icons.lock_rounded),
+  ),
   pdfToImages(
     'PDF → Images',
     'Export pages as PNG or JPG',
