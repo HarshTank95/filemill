@@ -82,6 +82,16 @@ class FileService {
     return PickedItem.fromPath(shot.path, name: shot.name);
   }
 
+  /// Writes bytes to the app temp dir and returns them as a pickable item
+  /// (used for processed scan pages).
+  static Future<PickedItem> writeTemp(String name, Uint8List bytes) async {
+    final dir = await getTemporaryDirectory();
+    final path =
+        p.join(dir.path, '${DateTime.now().microsecondsSinceEpoch}_$name');
+    await File(path).writeAsBytes(bytes);
+    return PickedItem(name: name, path: path, size: bytes.length);
+  }
+
   /// Save via the system "create document" dialog. Returns the chosen
   /// location, or null if the user cancelled.
   static Future<String?> saveOut(OutFile file) {

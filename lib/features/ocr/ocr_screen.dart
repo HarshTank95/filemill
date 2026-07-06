@@ -11,6 +11,7 @@ import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../merge/merge_screen.dart';
+import '../scan/crop_screen.dart';
 
 class OcrScreen extends StatelessWidget {
   final PickedItem? initialPdf;
@@ -74,12 +75,21 @@ class OcrScreen extends StatelessWidget {
             child: _SourceTile(
               icon: Icons.photo_camera_rounded,
               title: 'From camera',
-              subtitle: 'Snap a document right now',
+              subtitle: 'Snap a document — auto crop & deskew',
               onTap: () async {
                 final shot = await FileService.capturephoto();
-                if (shot != null && context.mounted) {
-                  _runImages(context, [shot]);
-                }
+                if (shot == null || !context.mounted) return;
+                // Perspective-corrected input reads dramatically better.
+                final raw = await shot.readBytes();
+                if (!context.mounted) return;
+                final processed =
+                    await Navigator.of(context).push<Uint8List>(
+                  Motion.fadeThrough(CropScreen(original: raw)),
+                );
+                if (processed == null || !context.mounted) return;
+                final item = await FileService.writeTemp(
+                    'ocr_capture.jpg', processed);
+                if (context.mounted) _runImages(context, [item]);
               },
             ),
           ),

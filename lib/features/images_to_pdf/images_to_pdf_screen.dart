@@ -11,6 +11,7 @@ import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../merge/merge_screen.dart';
 import '../result/result_screen.dart';
+import '../scan/crop_screen.dart';
 
 /// Images→PDF and Scan→PDF share this screen; [cameraMode] flips the primary
 /// add action (and the produced file name / history tool) to scanning.
@@ -48,8 +49,21 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
 
   Future<void> _capture() async {
     final shot = await FileService.capturephoto();
-    if (shot == null) return;
-    setState(() => _items.add(shot));
+    if (shot == null || !mounted) return;
+    if (!widget.cameraMode) {
+      setState(() => _items.add(shot));
+      return;
+    }
+    // Scan flow: every capture goes through edge crop + deskew + filter.
+    final raw = await shot.readBytes();
+    if (!mounted) return;
+    final processed = await Navigator.of(context).push<Uint8List>(
+      Motion.fadeThrough(CropScreen(original: raw)),
+    );
+    if (processed == null) return;
+    final item = await FileService.writeTemp(
+        'scan_page_${_items.length + 1}.jpg', processed);
+    if (mounted) setState(() => _items.add(item));
   }
 
   Future<void> _create() async {
