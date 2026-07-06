@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- FileMill's core promise: files never leave the device — PROVABLY.
+         Transitive libraries (ML Kit / Play Services) may merge INTERNET /
+         network-state permissions into the final manifest; strip them so the
+         release APK verifiably has zero network access. ML Kit text
+         recognition v2 is fully bundled on-device and works without them. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
+</manifest>

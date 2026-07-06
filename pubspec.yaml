@@ -1,0 +1,59 @@
+name: filemill
+description: "FileMill — offline PDF & file toolkit. Your files never leave your device."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # PDF engine
+  syncfusion_flutter_pdf: ^31.1.17   # load/merge/split/rotate existing PDFs (Community License)
+  pdf: ^3.12.0                       # pure-Dart PDF generation (images->PDF, text->PDF)
+  printing: ^5.14.3                  # print/share PDFs
+  pdfx: ^2.9.2                       # rasterize PDF pages to images (native PdfRenderer)
+
+  # On-device ML
+  google_mlkit_text_recognition: ^0.15.1
+
+  # Files & sharing
+  file_picker: ^10.3.4
+  image_picker: ^1.2.1
+  receive_sharing_intent: 1.8.1   # 1.9.0 has a broken android/build.gradle (kotlin{} without the plugin applied)
+  share_plus: ^12.0.2   # 13.x conflicts with file_picker over win32 (desktop-only dep)
+  path_provider: ^2.1.6
+  path: ^1.9.0
+  archive: ^4.0.7                    # zip multi-file outputs for single SAF save
+
+  # Imaging
+  image: ^4.5.4
+
+  # UI polish
+  animations: ^2.2.0
+  flutter_staggered_animations: ^1.1.1
+  reorderable_grid_view: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope.ttf
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk.ttf
