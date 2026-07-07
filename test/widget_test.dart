@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
+import 'package:filemill/core/services/image_convert_service.dart';
 import 'package:filemill/core/services/pdf_service.dart';
 import 'package:filemill/core/services/scan_processor.dart';
 import 'package:filemill/core/services/searchable_service.dart';
@@ -40,6 +41,7 @@ void main() {
     expect(find.text('Scan → PDF'), findsOneWidget);
     expect(find.text('Extract Text'), findsOneWidget);
     expect(find.text('Searchable PDF'), findsOneWidget);
+    expect(find.text('Convert Images'), findsOneWidget);
   });
 
   test('scan processor: identity warp keeps size, B&W output is binary',
@@ -128,6 +130,22 @@ void main() {
     expect(String.fromCharCodes(stamped.take(5)), '%PDF-');
     expect(await PdfService.pageCount(stamped), 2);
     expect(stamped.length, greaterThan(plain.length));
+  });
+
+  test('image convert: png to jpg with downscale', () async {
+    final src = img.Image(width: 3000, height: 1500);
+    img.fill(src, color: img.ColorRgb8(120, 40, 200));
+    final png = Uint8List.fromList(img.encodePng(src));
+
+    final jpg = await ImageConvertService.convert(
+      png,
+      format: ImageOutFormat.jpg,
+      jpgQuality: 80,
+      maxDim: 2048,
+    );
+    final decoded = img.decodeJpg(jpg)!;
+    expect(decoded.width, 2048);
+    expect(decoded.height, 1024);
   });
 
   test('range parser handles lists, ranges and clamping', () {

@@ -6,6 +6,7 @@ import '../../core/services/file_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../compress/compress_screen.dart';
+import '../image_convert/image_convert_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
 import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
@@ -212,6 +213,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(ImagesToPdfScreen(initial: _images)));
       add(Tool.ocr, 'Extract text from the image${_images.length == 1 ? '' : 's'}',
           () => _go(OcrScreen(initialImages: _images)));
+      add(Tool.imageConvert, 'Convert format or shrink',
+          () => _go(ImageConvertScreen(initial: _images)));
     }
     return actions;
   }

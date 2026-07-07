@@ -69,6 +69,11 @@ enum Tool {
     'Searchable PDF',
     'Give scans selectable text',
     ToolStyle([Color(0xFF3949AB), Color(0xFF7E8CE0)], Icons.manage_search_rounded),
+  ),
+  imageConvert(
+    'Convert Images',
+    'JPG · PNG · resize · shrink',
+    ToolStyle([Color(0xFF43A047), Color(0xFF81CB84)], Icons.swap_horiz_rounded),
   );
 
   final String title;

@@ -9,6 +9,7 @@ import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../compress/compress_screen.dart';
 import '../history/history_screen.dart';
+import '../image_convert/image_convert_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
 import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
@@ -52,6 +53,8 @@ class HomeScreen extends StatelessWidget {
         return const OcrScreen();
       case Tool.searchable:
         return const SearchableScreen();
+      case Tool.imageConvert:
+        return const ImageConvertScreen();
     }
   }
 
@@ -74,6 +77,7 @@ class HomeScreen extends StatelessWidget {
       Tool.imagesToPdf,
       Tool.ocr,
       Tool.searchable,
+      Tool.imageConvert,
     ];
 
     return Scaffold(
