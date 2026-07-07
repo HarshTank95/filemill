@@ -8,6 +8,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
 import 'package:filemill/core/services/pdf_service.dart';
 import 'package:filemill/core/services/scan_processor.dart';
+import 'package:filemill/core/services/searchable_service.dart';
 import 'package:filemill/features/home/home_screen.dart';
 import 'package:filemill/features/shared/page_grid.dart';
 import 'package:filemill/ui/theme.dart';
@@ -37,6 +38,7 @@ void main() {
     expect(find.text('Images → PDF'), findsOneWidget);
     expect(find.text('Scan → PDF'), findsOneWidget);
     expect(find.text('Extract Text'), findsOneWidget);
+    expect(find.text('Searchable PDF'), findsOneWidget);
   });
 
   test('scan processor: identity warp keeps size, B&W output is binary',
@@ -88,6 +90,23 @@ void main() {
     final unlocked = await PdfService.unlock(locked, 'secret123');
     expect(await PdfService.isProtected(unlocked), isFalse);
     expect(await PdfService.pageCount(unlocked), 1);
+  });
+
+  test('searchable assemble builds a valid PDF with invisible text layer',
+      () async {
+    final src = img.Image(width: 100, height: 140);
+    img.fill(src, color: img.ColorRgb8(255, 255, 255));
+    final jpg = Uint8List.fromList(img.encodeJpg(src));
+    final bytes = await SearchableService.assemble([
+      SearchablePage(
+        jpg: jpg,
+        widthPt: 100,
+        heightPt: 140,
+        lines: const [SearchableLine('FileMill test', 0.1, 0.1, 0.6, 0.05)],
+      ),
+    ]);
+    expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    expect(await PdfService.pageCount(bytes), 1);
   });
 
   test('range parser handles lists, ranges and clamping', () {

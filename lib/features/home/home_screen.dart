@@ -15,6 +15,7 @@ import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../protect/protect_screen.dart';
+import '../searchable/searchable_screen.dart';
 import '../sign/sign_screen.dart';
 import '../split/split_screen.dart';
 import '../viewer/viewer_launcher.dart';
@@ -46,6 +47,8 @@ class HomeScreen extends StatelessWidget {
         return const ImagesToPdfScreen(cameraMode: true);
       case Tool.ocr:
         return const OcrScreen();
+      case Tool.searchable:
+        return const SearchableScreen();
     }
   }
 
@@ -62,7 +65,12 @@ class HomeScreen extends StatelessWidget {
       Tool.protect,
       Tool.pdfToImages,
     ];
-    const createTools = [Tool.scanToPdf, Tool.imagesToPdf, Tool.ocr];
+    const createTools = [
+      Tool.scanToPdf,
+      Tool.imagesToPdf,
+      Tool.ocr,
+      Tool.searchable,
+    ];
 
     return Scaffold(
       body: SafeArea(

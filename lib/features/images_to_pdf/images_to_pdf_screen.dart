@@ -2,11 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 import '../../core/models/tool.dart';
 import '../../core/services/file_service.dart';
 import '../../core/services/image_pdf_service.dart';
+import '../../core/services/ocr_service.dart';
+import '../../core/services/searchable_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../merge/merge_screen.dart';
@@ -29,6 +32,7 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
   late final List<PickedItem> _items = [...widget.initial];
   PageSizeOption _pageSize = PageSizeOption.auto;
   bool _margin = false;
+  bool _searchable = false;
 
   Tool get _tool => widget.cameraMode ? Tool.scanToPdf : Tool.imagesToPdf;
 
@@ -79,12 +83,17 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
           normalized
               .add(await ImagePdfService.normalize(await _items[i].readBytes()));
         }
-        status.value = 'Assembling PDF';
-        final bytes = await ImagePdfService.assemble(
-          normalized,
-          pageSize: _pageSize,
-          margin: _margin,
-        );
+        final Uint8List bytes;
+        if (_searchable) {
+          bytes = await _assembleSearchable(normalized, status);
+        } else {
+          status.value = 'Assembling PDF';
+          bytes = await ImagePdfService.assemble(
+            normalized,
+            pageSize: _pageSize,
+            margin: _margin,
+          );
+        }
         final prefix = widget.cameraMode ? 'scan' : 'images';
         return OutFile(
           name: '${prefix}_${_items.length}p.pdf',
@@ -97,6 +106,44 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
       Navigator.of(context)
           .push(Motion.fadeThrough(ResultScreen(tool: _tool, files: [out])));
     }
+  }
+
+  /// OCRs each normalized image and lays an invisible text layer over it
+  /// (1 px = 1 pt pages, so boxes map directly).
+  Future<Uint8List> _assembleSearchable(
+      List<Uint8List> images, ValueNotifier<String?> status) async {
+    final recognizer = OcrService.newRecognizer();
+    final pages = <SearchablePage>[];
+    try {
+      for (var i = 0; i < images.length; i++) {
+        status.value = 'Reading text ${i + 1} of ${images.length}';
+        final temp =
+            await FileService.writeTemp('searchable_$i.jpg', images[i]);
+        final lines = await OcrService.imageLines(temp.path, recognizer);
+        final header = pw.MemoryImage(images[i]);
+        final w = (header.width ?? 1000).toDouble();
+        final h = (header.height ?? 1400).toDouble();
+        pages.add(SearchablePage(
+          jpg: images[i],
+          widthPt: w,
+          heightPt: h,
+          lines: [
+            for (final l in lines)
+              SearchableLine(
+                l.text,
+                (l.box.left / w).clamp(0.0, 1.0),
+                (l.box.top / h).clamp(0.0, 1.0),
+                (l.box.width / w).clamp(0.001, 1.0),
+                (l.box.height / h).clamp(0.001, 1.0),
+              ),
+          ],
+        ));
+      }
+    } finally {
+      await recognizer.close();
+    }
+    status.value = 'Assembling PDF';
+    return SearchableService.assemble(pages);
   }
 
   @override
@@ -125,6 +172,25 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
           : Column(
               children: [
                 Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Icon(Icons.manage_search_rounded,
+                          size: 18, color: Tool.searchable.style.base),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text('Searchable text (OCR)',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                      Switch(
+                        value: _searchable,
+                        onChanged: (v) => setState(() => _searchable = v),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!_searchable)
+                Padding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
                   child: Row(
                     children: [
@@ -148,20 +214,21 @@ class _ImagesToPdfScreenState extends State<ImagesToPdfScreen> {
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      Text('Page margin',
-                          style: Theme.of(context).textTheme.bodyMedium),
-                      const Spacer(),
-                      Switch(
-                        value: _margin,
-                        onChanged: (v) => setState(() => _margin = v),
-                      ),
-                    ],
+                if (!_searchable)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Text('Page margin',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        const Spacer(),
+                        Switch(
+                          value: _margin,
+                          onChanged: (v) => setState(() => _margin = v),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 Expanded(
                   child: ReorderableGridView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),

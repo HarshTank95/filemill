@@ -59,6 +59,11 @@ enum Tool {
     'Extract Text',
     'On-device OCR, no upload',
     ToolStyle([Color(0xFFFB8C00), Color(0xFFFFC46B)], Icons.text_fields_rounded),
+  ),
+  searchable(
+    'Searchable PDF',
+    'Give scans selectable text',
+    ToolStyle([Color(0xFF3949AB), Color(0xFF7E8CE0)], Icons.manage_search_rounded),
   );
 
   final String title;
