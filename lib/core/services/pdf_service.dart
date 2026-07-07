@@ -44,6 +44,44 @@ class PdfService {
   /// message when the password is wrong.
   static Future<Uint8List> unlock(Uint8List bytes, String password) =>
       compute(_unlock, _PasswordArgs(bytes, password));
+
+  /// Draws image stamps (signatures) onto existing pages. Coordinates are
+  /// in PDF points with a top-left origin.
+  static Future<Uint8List> stamp(Uint8List bytes, List<Stamp> stamps) =>
+      compute(_stamp, _StampArgs(bytes, stamps));
+}
+
+class Stamp {
+  final int pageIndex;
+  final Uint8List png;
+  final double x, y, width, height;
+  const Stamp({
+    required this.pageIndex,
+    required this.png,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+}
+
+class _StampArgs {
+  final Uint8List bytes;
+  final List<Stamp> stamps;
+  const _StampArgs(this.bytes, this.stamps);
+}
+
+Future<Uint8List> _stamp(_StampArgs args) async {
+  final doc = PdfDocument(inputBytes: args.bytes);
+  for (final s in args.stamps) {
+    doc.pages[s.pageIndex].graphics.drawImage(
+      PdfBitmap(s.png),
+      Rect.fromLTWH(s.x, s.y, s.width, s.height),
+    );
+  }
+  final out = Uint8List.fromList(await doc.save());
+  doc.dispose();
+  return out;
 }
 
 class _PasswordArgs {

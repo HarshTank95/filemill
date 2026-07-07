@@ -12,6 +12,7 @@ import '../../ui/theme.dart';
 import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
+import '../sign/sign_screen.dart';
 import '../split/split_screen.dart';
 
 /// Fast, private PDF reader. Also the landing screen when FileMill is chosen
@@ -118,6 +119,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 ],
               ),
             ),
+            _toolTile(sheetContext, Tool.sign, 'Place your signature',
+                SignScreen(initial: item)),
             _toolTile(sheetContext, Tool.split, 'Extract pages',
                 SplitScreen(initial: item)),
             _toolTile(sheetContext, Tool.organize, 'Reorder, rotate, delete',

@@ -14,6 +14,7 @@ import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../protect/protect_screen.dart';
+import '../sign/sign_screen.dart';
 import '../split/split_screen.dart';
 import '../viewer/viewer_launcher.dart';
 
@@ -30,6 +31,8 @@ class HomeScreen extends StatelessWidget {
         return const SplitScreen();
       case Tool.organize:
         return const OrganizeScreen();
+      case Tool.sign:
+        return const SignScreen();
       case Tool.protect:
         return const ProtectScreen();
       case Tool.pdfToImages:
@@ -48,6 +51,7 @@ class HomeScreen extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     const pdfTools = [
       Tool.viewer,
+      Tool.sign,
       Tool.merge,
       Tool.split,
       Tool.organize,

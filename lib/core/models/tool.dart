@@ -25,6 +25,11 @@ enum Tool {
     'Reorder · rotate · delete pages',
     ToolStyle([Color(0xFFF4511E), Color(0xFFFF8A65)], Icons.dashboard_customize_rounded),
   ),
+  sign(
+    'Sign PDF',
+    'Draw & place your signature',
+    ToolStyle([Color(0xFF00695C), Color(0xFF2BB39A)], Icons.draw_rounded),
+  ),
   protect(
     'Protect PDF',
     'Lock or unlock with a password',

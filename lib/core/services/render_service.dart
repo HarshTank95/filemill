@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' show Size;
 
 import 'package:pdfx/pdfx.dart' as px;
 
@@ -20,6 +21,20 @@ class RenderedDoc {
       RenderedDoc._(await px.PdfDocument.openData(bytes));
 
   int get pageCount => _doc.pagesCount;
+
+  /// Page dimensions in PDF points (0-based index).
+  Future<Size> pageSize(int index) {
+    final completer = _queue.then((_) async {
+      final page = await _doc.getPage(index + 1);
+      try {
+        return Size(page.width, page.height);
+      } finally {
+        await page.close();
+      }
+    });
+    _queue = completer.then((_) {}, onError: (_) {});
+    return completer;
+  }
 
   /// Renders 0-based [index]. [scale] multiplies the page's natural size
   /// (72 dpi), so scale 2 ≈ 144 dpi.
