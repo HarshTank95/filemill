@@ -35,6 +35,11 @@ enum Tool {
     'Lock or unlock with a password',
     ToolStyle([Color(0xFFD81B60), Color(0xFFF0709A)], Icons.lock_rounded),
   ),
+  compress(
+    'Compress PDF',
+    'Fit email & portal size limits',
+    ToolStyle([Color(0xFFEF6C00), Color(0xFFFFA751)], Icons.compress_rounded),
+  ),
   pdfToImages(
     'PDF → Images',
     'Export pages as PNG or JPG',

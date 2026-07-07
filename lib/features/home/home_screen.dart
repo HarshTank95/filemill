@@ -7,6 +7,7 @@ import '../../core/services/history_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
+import '../compress/compress_screen.dart';
 import '../history/history_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
 import '../merge/merge_screen.dart';
@@ -35,6 +36,8 @@ class HomeScreen extends StatelessWidget {
         return const SignScreen();
       case Tool.protect:
         return const ProtectScreen();
+      case Tool.compress:
+        return const CompressScreen();
       case Tool.pdfToImages:
         return const PdfToImagesScreen();
       case Tool.imagesToPdf:
@@ -55,6 +58,7 @@ class HomeScreen extends StatelessWidget {
       Tool.merge,
       Tool.split,
       Tool.organize,
+      Tool.compress,
       Tool.protect,
       Tool.pdfToImages,
     ];

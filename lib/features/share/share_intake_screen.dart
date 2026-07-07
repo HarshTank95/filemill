@@ -5,6 +5,7 @@ import '../../core/models/tool.dart';
 import '../../core/services/file_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
+import '../compress/compress_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
 import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
@@ -193,6 +194,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(OcrScreen(initialPdf: pdf)));
       add(Tool.protect, 'Add or remove a password',
           () => _go(ProtectScreen(initial: pdf)));
+      add(Tool.compress, 'Shrink it for sharing',
+          () => _go(CompressScreen(initial: pdf)));
       add(Tool.merge, 'Combine with more PDFs',
           () => _go(MergeScreen(initial: [pdf])));
     }

@@ -32,6 +32,7 @@ void main() {
     expect(find.text('Organize'), findsOneWidget);
     expect(find.text('Protect PDF'), findsOneWidget);
     expect(find.text('Sign PDF'), findsOneWidget);
+    expect(find.text('Compress PDF'), findsOneWidget);
     expect(find.text('PDF → Images'), findsOneWidget);
     expect(find.text('Images → PDF'), findsOneWidget);
     expect(find.text('Scan → PDF'), findsOneWidget);

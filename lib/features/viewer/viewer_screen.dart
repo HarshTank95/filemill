@@ -10,6 +10,7 @@ import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../ocr/ocr_screen.dart';
+import '../compress/compress_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../sign/sign_screen.dart';
@@ -125,6 +126,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 SplitScreen(initial: item)),
             _toolTile(sheetContext, Tool.organize, 'Reorder, rotate, delete',
                 OrganizeScreen(initial: item)),
+            _toolTile(sheetContext, Tool.compress, 'Shrink for sharing',
+                CompressScreen(initial: item)),
             _toolTile(sheetContext, Tool.pdfToImages, 'Export pages as images',
                 PdfToImagesScreen(initial: item)),
             _toolTile(sheetContext, Tool.ocr, 'Recognize text on every page',
