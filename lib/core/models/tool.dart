@@ -35,6 +35,11 @@ enum Tool {
     'Lock or unlock with a password',
     ToolStyle([Color(0xFFD81B60), Color(0xFFF0709A)], Icons.lock_rounded),
   ),
+  redact(
+    'Redact',
+    'Destroy sensitive info, truly',
+    ToolStyle([Color(0xFF263238), Color(0xFF546E7A)], Icons.visibility_off_rounded),
+  ),
   watermark(
     'Watermark',
     'Stamp text & page numbers',

@@ -16,6 +16,7 @@ import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../protect/protect_screen.dart';
+import '../redact/redact_screen.dart';
 import '../searchable/searchable_screen.dart';
 import '../sign/sign_screen.dart';
 import '../split/split_screen.dart';
@@ -43,6 +44,8 @@ class HomeScreen extends StatelessWidget {
         return const CompressScreen();
       case Tool.watermark:
         return const WatermarkScreen();
+      case Tool.redact:
+        return const RedactScreen();
       case Tool.pdfToImages:
         return const PdfToImagesScreen();
       case Tool.imagesToPdf:
@@ -69,6 +72,7 @@ class HomeScreen extends StatelessWidget {
       Tool.organize,
       Tool.compress,
       Tool.protect,
+      Tool.redact,
       Tool.watermark,
       Tool.pdfToImages,
     ];

@@ -36,6 +36,7 @@ void main() {
     expect(find.text('Sign PDF'), findsOneWidget);
     expect(find.text('Compress PDF'), findsOneWidget);
     expect(find.text('Watermark'), findsOneWidget);
+    expect(find.text('Redact'), findsOneWidget);
     expect(find.text('PDF → Images'), findsOneWidget);
     expect(find.text('Images → PDF'), findsOneWidget);
     expect(find.text('Scan → PDF'), findsOneWidget);
@@ -146,6 +147,45 @@ void main() {
     final decoded = img.decodeJpg(jpg)!;
     expect(decoded.width, 2048);
     expect(decoded.height, 1024);
+  });
+
+  test('redact truly destroys text on flattened pages', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add().graphics.drawString(
+        'SECRET-9876', sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 14),
+        bounds: const Rect.fromLTWH(50, 50, 200, 30));
+    doc.pages.add().graphics.drawString(
+        'public text', sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 14),
+        bounds: const Rect.fromLTWH(50, 50, 200, 30));
+    final plain = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    final white = img.Image(width: 200, height: 280);
+    img.fill(white, color: img.ColorRgb8(255, 255, 255));
+    final pageJpg = Uint8List.fromList(img.encodeJpg(white));
+
+    final redacted = await PdfService.redact(plain, [
+      RedactPage(
+        pageIndex: 0,
+        jpg: pageJpg,
+        widthPt: 595,
+        heightPt: 842,
+        boxes: const [Rect.fromLTWH(40, 40, 220, 50)],
+        labels: const [
+          RedactLabel('HIDDEN', Rect.fromLTWH(40, 40, 220, 50), false),
+        ],
+      ),
+    ]);
+
+    final result = sf.PdfDocument(inputBytes: redacted);
+    final text = sf.PdfTextExtractor(result).extractText();
+    expect(result.pages.count, 2);
+    result.dispose();
+    // The secret must be GONE from the document, not merely covered.
+    expect(text.contains('SECRET-9876'), isFalse);
+    expect(text.contains('public text'), isTrue);
+    // The label is real vector text drawn on top of the destroyed area.
+    expect(text.contains('HIDDEN'), isTrue);
   });
 
   test('range parser handles lists, ranges and clamping', () {

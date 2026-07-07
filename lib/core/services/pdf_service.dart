@@ -55,6 +55,109 @@ class PdfService {
   static Future<Uint8List> watermark(
           Uint8List bytes, WatermarkOptions options) =>
       compute(_watermark, _WatermarkArgs(bytes, options));
+
+  /// True redaction: pages listed in [pages] are REPLACED by their
+  /// pre-rendered raster image (destroying the underlying content) and the
+  /// black boxes are drawn on top. Untouched pages are template-copied at
+  /// original quality.
+  static Future<Uint8List> redact(Uint8List bytes, List<RedactPage> pages) =>
+      compute(_redact, _RedactArgs(bytes, pages));
+}
+
+/// One page to flatten + black out. [boxes] are Rects in PDF points using
+/// the *display* orientation (matching the rendered [jpg]), as are
+/// [widthPt]/[heightPt]. [labels] are drawn as vector text AFTER the
+/// flattened image, centered on their (already-destroyed) boxes.
+class RedactPage {
+  final int pageIndex;
+  final Uint8List jpg;
+  final double widthPt;
+  final double heightPt;
+  final List<Rect> boxes;
+  final List<RedactLabel> labels;
+  const RedactPage({
+    required this.pageIndex,
+    required this.jpg,
+    required this.widthPt,
+    required this.heightPt,
+    required this.boxes,
+    this.labels = const [],
+  });
+}
+
+class RedactLabel {
+  final String text;
+  final Rect rect; // PDF points
+  final bool dark; // dark text (pixelated bg) vs white (black bg)
+  const RedactLabel(this.text, this.rect, this.dark);
+}
+
+class _RedactArgs {
+  final Uint8List bytes;
+  final List<RedactPage> pages;
+  const _RedactArgs(this.bytes, this.pages);
+}
+
+Future<Uint8List> _redact(_RedactArgs args) async {
+  final src = PdfDocument(inputBytes: args.bytes);
+  final out = PdfDocument();
+  out.pageSettings.margins.all = 0;
+  final replaced = {for (final p in args.pages) p.pageIndex: p};
+  final black = PdfSolidBrush(PdfColor(0, 0, 0));
+  for (var i = 0; i < src.pages.count; i++) {
+    final redaction = replaced[i];
+    if (redaction == null) {
+      _appendPage(out, src.pages[i], 0);
+      continue;
+    }
+    final size = Size(redaction.widthPt, redaction.heightPt);
+    out.pageSettings.orientation = size.width > size.height
+        ? PdfPageOrientation.landscape
+        : PdfPageOrientation.portrait;
+    out.pageSettings.size = size;
+    out.pageSettings.rotate = PdfPageRotateAngle.rotateAngle0;
+    final page = out.pages.add();
+    page.graphics.drawImage(
+      PdfBitmap(redaction.jpg),
+      Rect.fromLTWH(0, 0, size.width, size.height),
+    );
+    for (final box in redaction.boxes) {
+      page.graphics.drawRectangle(brush: black, bounds: box);
+    }
+    for (final label in redaction.labels) {
+      _drawRedactLabel(page.graphics, label);
+    }
+  }
+  src.dispose();
+  final result = Uint8List.fromList(await out.save());
+  out.dispose();
+  return result;
+}
+
+/// Vector label centered on a redaction box, font sized to fit.
+void _drawRedactLabel(PdfGraphics graphics, RedactLabel label) {
+  var fontSize = (label.rect.height * 0.55).clamp(6.0, 48.0);
+  var font = PdfStandardFont(PdfFontFamily.helvetica, fontSize,
+      style: PdfFontStyle.bold);
+  var measured = font.measureString(label.text);
+  if (measured.width > label.rect.width * 0.92) {
+    fontSize = fontSize * label.rect.width * 0.92 / measured.width;
+    font = PdfStandardFont(PdfFontFamily.helvetica, fontSize,
+        style: PdfFontStyle.bold);
+    measured = font.measureString(label.text);
+  }
+  graphics.drawString(
+    label.text,
+    font,
+    brush: PdfSolidBrush(
+        label.dark ? PdfColor(40, 40, 40) : PdfColor(255, 255, 255)),
+    bounds: Rect.fromLTWH(
+      label.rect.left + (label.rect.width - measured.width) / 2,
+      label.rect.top + (label.rect.height - measured.height) / 2,
+      measured.width + 4,
+      measured.height + 4,
+    ),
+  );
 }
 
 enum PageNumberFormat { simple, ofTotal, pageOfTotal }
