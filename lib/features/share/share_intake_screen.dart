@@ -16,6 +16,7 @@ import '../searchable/searchable_screen.dart';
 import '../sign/sign_screen.dart';
 import '../split/split_screen.dart';
 import '../viewer/viewer_screen.dart';
+import '../watermark/watermark_screen.dart';
 
 /// Landing screen when files are shared to FileMill from another app:
 /// shows what arrived and the tools that make sense for it.
@@ -199,6 +200,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(CompressScreen(initial: pdf)));
       add(Tool.searchable, 'Make the scan searchable',
           () => _go(SearchableScreen(initial: pdf)));
+      add(Tool.watermark, 'Stamp text or page numbers',
+          () => _go(WatermarkScreen(initial: pdf)));
       add(Tool.merge, 'Combine with more PDFs',
           () => _go(MergeScreen(initial: [pdf])));
     }

@@ -34,6 +34,7 @@ void main() {
     expect(find.text('Protect PDF'), findsOneWidget);
     expect(find.text('Sign PDF'), findsOneWidget);
     expect(find.text('Compress PDF'), findsOneWidget);
+    expect(find.text('Watermark'), findsOneWidget);
     expect(find.text('PDF → Images'), findsOneWidget);
     expect(find.text('Images → PDF'), findsOneWidget);
     expect(find.text('Scan → PDF'), findsOneWidget);
@@ -107,6 +108,26 @@ void main() {
     ]);
     expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
     expect(await PdfService.pageCount(bytes), 1);
+  });
+
+  test('watermark stamps every page and keeps the document valid', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add();
+    doc.pages.add();
+    final plain = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    final stamped = await PdfService.watermark(
+      plain,
+      const WatermarkOptions(
+        text: 'CONFIDENTIAL',
+        pageNumbers: true,
+        numberFormat: PageNumberFormat.pageOfTotal,
+      ),
+    );
+    expect(String.fromCharCodes(stamped.take(5)), '%PDF-');
+    expect(await PdfService.pageCount(stamped), 2);
+    expect(stamped.length, greaterThan(plain.length));
   });
 
   test('range parser handles lists, ranges and clamping', () {

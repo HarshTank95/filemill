@@ -35,6 +35,11 @@ enum Tool {
     'Lock or unlock with a password',
     ToolStyle([Color(0xFFD81B60), Color(0xFFF0709A)], Icons.lock_rounded),
   ),
+  watermark(
+    'Watermark',
+    'Stamp text & page numbers',
+    ToolStyle([Color(0xFF7B1FA2), Color(0xFFBA68C8)], Icons.branding_watermark_rounded),
+  ),
   compress(
     'Compress PDF',
     'Fit email & portal size limits',

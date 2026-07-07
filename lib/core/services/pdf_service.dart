@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -49,6 +50,116 @@ class PdfService {
   /// in PDF points with a top-left origin.
   static Future<Uint8List> stamp(Uint8List bytes, List<Stamp> stamps) =>
       compute(_stamp, _StampArgs(bytes, stamps));
+
+  /// Stamps a diagonal text watermark and/or page numbers onto every page.
+  static Future<Uint8List> watermark(
+          Uint8List bytes, WatermarkOptions options) =>
+      compute(_watermark, _WatermarkArgs(bytes, options));
+}
+
+enum PageNumberFormat { simple, ofTotal, pageOfTotal }
+
+enum PageNumberAlign { left, center, right }
+
+class WatermarkOptions {
+  final String? text; // null = no watermark
+  final double opacity;
+  final bool red; // red ink instead of gray
+  final bool pageNumbers;
+  final PageNumberFormat numberFormat;
+  final PageNumberAlign numberAlign;
+  const WatermarkOptions({
+    this.text,
+    this.opacity = 0.18,
+    this.red = false,
+    this.pageNumbers = false,
+    this.numberFormat = PageNumberFormat.pageOfTotal,
+    this.numberAlign = PageNumberAlign.center,
+  });
+
+  String numberLabel(int page, int total) {
+    switch (numberFormat) {
+      case PageNumberFormat.simple:
+        return '$page';
+      case PageNumberFormat.ofTotal:
+        return '$page of $total';
+      case PageNumberFormat.pageOfTotal:
+        return 'Page $page of $total';
+    }
+  }
+}
+
+class _WatermarkArgs {
+  final Uint8List bytes;
+  final WatermarkOptions options;
+  const _WatermarkArgs(this.bytes, this.options);
+}
+
+Future<Uint8List> _watermark(_WatermarkArgs args) async {
+  final doc = PdfDocument(inputBytes: args.bytes);
+  final options = args.options;
+  final total = doc.pages.count;
+  for (var i = 0; i < total; i++) {
+    final page = doc.pages[i];
+    final graphics = page.graphics;
+    final size = page.getClientSize();
+
+    final text = options.text;
+    if (text != null && text.trim().isNotEmpty) {
+      // Scale the font so the diagonal text spans ~70% of the page width.
+      var fontSize = 72.0;
+      var font = PdfStandardFont(PdfFontFamily.helvetica, fontSize,
+          style: PdfFontStyle.bold);
+      final measured = font.measureString(text);
+      final diagonal =
+          0.7 * math.sqrt(size.width * size.width + size.height * size.height);
+      fontSize = (fontSize * diagonal / measured.width).clamp(18.0, 160.0);
+      font = PdfStandardFont(PdfFontFamily.helvetica, fontSize,
+          style: PdfFontStyle.bold);
+      final textSize = font.measureString(text);
+
+      final state = graphics.save();
+      graphics.setTransparency(options.opacity);
+      graphics.translateTransform(size.width / 2, size.height / 2);
+      graphics.rotateTransform(
+          -math.atan2(size.height, size.width) * 180 / math.pi);
+      graphics.drawString(
+        text,
+        font,
+        brush: PdfSolidBrush(options.red
+            ? PdfColor(200, 30, 30)
+            : PdfColor(90, 90, 90)),
+        bounds: Rect.fromLTWH(-textSize.width / 2, -textSize.height / 2,
+            textSize.width + 4, textSize.height + 4),
+      );
+      graphics.restore(state);
+    }
+
+    if (options.pageNumbers) {
+      final label = options.numberLabel(i + 1, total);
+      final font = PdfStandardFont(PdfFontFamily.helvetica, 10);
+      final labelSize = font.measureString(label);
+      final double x;
+      switch (options.numberAlign) {
+        case PageNumberAlign.left:
+          x = 28;
+        case PageNumberAlign.center:
+          x = (size.width - labelSize.width) / 2;
+        case PageNumberAlign.right:
+          x = size.width - labelSize.width - 28;
+      }
+      graphics.drawString(
+        label,
+        font,
+        brush: PdfSolidBrush(PdfColor(110, 110, 110)),
+        bounds: Rect.fromLTWH(
+            x, size.height - 24, labelSize.width + 4, labelSize.height + 4),
+      );
+    }
+  }
+  final out = Uint8List.fromList(await doc.save());
+  doc.dispose();
+  return out;
 }
 
 class Stamp {
