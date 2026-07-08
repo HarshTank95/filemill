@@ -21,6 +21,7 @@ import '../redact/redact_screen.dart';
 import '../searchable/searchable_screen.dart';
 import '../sign/sign_screen.dart';
 import '../split/split_screen.dart';
+import '../split_files/split_files_screen.dart';
 import '../viewer/viewer_screen.dart';
 import '../watermark/watermark_screen.dart';
 
@@ -196,6 +197,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(AddTextScreen(initial: pdf)));
       add(Tool.split, 'Extract pages from ${pdf.name}',
           () => _go(SplitScreen(initial: pdf)));
+      add(Tool.splitFiles, 'Break into separate PDFs',
+          () => _go(SplitFilesScreen(initial: pdf)));
       add(Tool.organize, 'Reorder, rotate or delete pages',
           () => _go(OrganizeScreen(initial: pdf)));
       add(Tool.crop, 'Trim margins or crop pages',

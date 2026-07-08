@@ -22,6 +22,7 @@ import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../protect/protect_screen.dart';
 import '../redact/redact_screen.dart';
+import '../split_files/split_files_screen.dart';
 import '../searchable/searchable_screen.dart';
 import '../sign/sign_screen.dart';
 import '../split/split_screen.dart';
@@ -41,6 +42,8 @@ class HomeScreen extends StatelessWidget {
         return const SplitScreen();
       case Tool.organize:
         return const OrganizeScreen();
+      case Tool.splitFiles:
+        return const SplitFilesScreen();
       case Tool.crop:
         return const CropPdfScreen();
       case Tool.sign:
@@ -83,6 +86,7 @@ class HomeScreen extends StatelessWidget {
       Tool.addText,
       Tool.merge,
       Tool.split,
+      Tool.splitFiles,
       Tool.organize,
       Tool.crop,
       Tool.compress,

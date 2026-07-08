@@ -25,6 +25,11 @@ enum Tool {
     'Reorder · rotate · delete pages',
     ToolStyle([Color(0xFFF4511E), Color(0xFFFF8A65)], Icons.dashboard_customize_rounded),
   ),
+  splitFiles(
+    'Split to Files',
+    'Break into separate PDFs',
+    ToolStyle([Color(0xFF00897B), Color(0xFF4DB6AC)], Icons.call_split_rounded),
+  ),
   crop(
     'Crop PDF',
     'Trim margins · crop pages',

@@ -12,6 +12,7 @@ import 'package:filemill/core/services/scan_processor.dart';
 import 'package:filemill/core/services/searchable_service.dart';
 import 'package:filemill/features/home/home_screen.dart';
 import 'package:filemill/features/shared/page_grid.dart';
+import 'package:filemill/features/split_files/split_files_screen.dart';
 import 'package:filemill/ui/theme.dart';
 
 void main() {
@@ -32,6 +33,7 @@ void main() {
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('Split PDF'), findsOneWidget);
     expect(find.text('Organize'), findsOneWidget);
+    expect(find.text('Split to Files'), findsOneWidget);
     expect(find.text('Crop PDF'), findsOneWidget);
     expect(find.text('Protect PDF'), findsOneWidget);
     expect(find.text('Sign PDF'), findsOneWidget);
@@ -292,6 +294,17 @@ void main() {
     expect(String.fromCharCodes(inked.take(5)), '%PDF-');
     expect(await PdfService.pageCount(inked), 1);
     expect(inked.length, greaterThan(plain.length));
+  });
+
+  test('split-to-files groups pages by ranges', () {
+    // "1-3, 5, 8-10" over a 10-page doc -> 3 groups of 0-based indices.
+    final groups = SplitFilesScreen.parseRangeGroups('1-3, 5, 8-10', 10);
+    expect(groups.length, 3);
+    expect(groups[0], [0, 1, 2]);
+    expect(groups[1], [4]);
+    expect(groups[2], [7, 8, 9]);
+    // Out-of-range and reversed tokens are dropped.
+    expect(SplitFilesScreen.parseRangeGroups('9-8, 20-25', 10), isEmpty);
   });
 
   test('range parser handles lists, ranges and clamping', () {
