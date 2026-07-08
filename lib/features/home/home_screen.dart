@@ -7,6 +7,7 @@ import '../../core/services/history_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
+import '../about/about_screen.dart';
 import '../addtext/addtext_screen.dart';
 import '../compress/compress_screen.dart';
 import '../crop/crop_pdf_screen.dart';
@@ -113,10 +114,16 @@ class HomeScreen extends StatelessWidget {
                         child: FadeInAnimation(child: child),
                       ),
                       children: [
-                        _Header(onHistory: () {
-                          Navigator.of(context)
-                              .push(Motion.sharedAxis(const HistoryScreen()));
-                        }),
+                        _Header(
+                          onHistory: () {
+                            Navigator.of(context)
+                                .push(Motion.sharedAxis(const HistoryScreen()));
+                          },
+                          onAbout: () {
+                            Navigator.of(context)
+                                .push(Motion.sharedAxis(const AboutScreen()));
+                          },
+                        ),
                         const SizedBox(height: 18),
                         const _HeroCard(),
                         const SectionHeader('PDF tools'),
@@ -149,7 +156,8 @@ class HomeScreen extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final VoidCallback onHistory;
-  const _Header({required this.onHistory});
+  final VoidCallback onAbout;
+  const _Header({required this.onHistory, required this.onAbout});
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +182,12 @@ class _Header extends StatelessWidget {
         Text('FileMill',
             style: AppTheme.grotesk(750, size: 26, color: scheme.onSurface)),
         const Spacer(),
+        IconButton(
+          tooltip: 'About',
+          onPressed: onAbout,
+          icon: const Icon(Icons.info_outline_rounded),
+        ),
+        const SizedBox(width: 4),
         IconButton.filledTonal(
           tooltip: 'History',
           onPressed: onHistory,
