@@ -9,6 +9,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:filemill/core/services/image_convert_service.dart';
 import 'package:filemill/core/services/pdf_service.dart';
 import 'package:filemill/core/services/scan_processor.dart';
+import 'package:filemill/core/models/tool.dart';
 import 'package:filemill/core/services/searchable_service.dart';
 import 'package:filemill/features/home/home_screen.dart';
 import 'package:filemill/features/shared/page_grid.dart';
@@ -16,7 +17,7 @@ import 'package:filemill/features/split_files/split_files_screen.dart';
 import 'package:filemill/ui/theme.dart';
 
 void main() {
-  testWidgets('Home renders wordmark, privacy claim and all tools',
+  testWidgets('Home renders wordmark, search and the first tools',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
@@ -28,27 +29,25 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('FileMill'), findsOneWidget);
-    expect(find.textContaining('Zero uploads'), findsOneWidget);
-    expect(find.text('Read PDF'), findsOneWidget);
-    expect(find.text('Merge PDF'), findsOneWidget);
-    expect(find.text('Split PDF'), findsOneWidget);
-    expect(find.text('Organize'), findsOneWidget);
-    expect(find.text('Split to Files'), findsOneWidget);
-    expect(find.text('Crop PDF'), findsOneWidget);
-    expect(find.text('Protect PDF'), findsOneWidget);
-    expect(find.text('Sign PDF'), findsOneWidget);
-    expect(find.text('Draw'), findsOneWidget);
-    expect(find.text('Add Text'), findsOneWidget);
-    expect(find.text('Compress PDF'), findsOneWidget);
-    expect(find.text('Watermark'), findsOneWidget);
-    expect(find.text('Highlight'), findsOneWidget);
-    expect(find.text('Redact'), findsOneWidget);
-    expect(find.text('PDF → Images'), findsOneWidget);
-    expect(find.text('Images → PDF'), findsOneWidget);
+    expect(find.text('Scan & create'), findsOneWidget);
+    expect(find.textContaining('Search'), findsWidgets);
+    // First-category tiles render into the initial viewport.
     expect(find.text('Scan → PDF'), findsOneWidget);
-    expect(find.text('Extract Text'), findsOneWidget);
-    expect(find.text('Searchable PDF'), findsOneWidget);
-    expect(find.text('Convert Images'), findsOneWidget);
+    expect(find.text('Images → PDF'), findsOneWidget);
+  });
+
+  test('every tool has a category and the toolset is complete', () {
+    expect(Tool.values.length, 20);
+    for (final t in Tool.values) {
+      expect(ToolCategory.values.contains(t.category), isTrue);
+    }
+    // Categories cover all tools with none empty.
+    for (final c in ToolCategory.values) {
+      expect(Tool.inCategory(c), isNotEmpty);
+    }
+    expect(Tool.viewer.matches('read'), isTrue);
+    expect(Tool.protect.matches('password'), isTrue);
+    expect(Tool.merge.matches('zzz'), isFalse);
   });
 
   test('scan processor: identity warp keeps size, B&W output is binary',
