@@ -68,6 +68,44 @@ class PdfService {
   /// page. Scanned PDFs with no text layer return nothing.
   static Future<List<TextMatch>> findText(Uint8List bytes, String query) =>
       compute(_findText, _FindArgs(bytes, query));
+
+  /// Draws translucent highlighter rectangles over the page WITHOUT
+  /// flattening — text stays selectable and quality is untouched.
+  static Future<Uint8List> highlight(
+          Uint8List bytes, List<HighlightBox> boxes) =>
+      compute(_highlight, _HighlightArgs(bytes, boxes));
+}
+
+/// A highlighter mark: rect in PDF points (top-left) + RGB color.
+class HighlightBox {
+  final int pageIndex;
+  final Rect rect;
+  final int r, g, b;
+  const HighlightBox(this.pageIndex, this.rect, this.r, this.g, this.b);
+}
+
+class _HighlightArgs {
+  final Uint8List bytes;
+  final List<HighlightBox> boxes;
+  const _HighlightArgs(this.bytes, this.boxes);
+}
+
+Future<Uint8List> _highlight(_HighlightArgs args) async {
+  final doc = PdfDocument(inputBytes: args.bytes);
+  for (final box in args.boxes) {
+    final graphics = doc.pages[box.pageIndex].graphics;
+    final state = graphics.save();
+    // Translucent so the text underneath shows through — a highlighter look.
+    graphics.setTransparency(0.4);
+    graphics.drawRectangle(
+      brush: PdfSolidBrush(PdfColor(box.r, box.g, box.b)),
+      bounds: box.rect,
+    );
+    graphics.restore(state);
+  }
+  final out = Uint8List.fromList(await doc.save());
+  doc.dispose();
+  return out;
 }
 
 /// A located text hit: normalized (0..1) box with a top-left origin.

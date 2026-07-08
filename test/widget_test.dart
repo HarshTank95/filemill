@@ -36,6 +36,7 @@ void main() {
     expect(find.text('Sign PDF'), findsOneWidget);
     expect(find.text('Compress PDF'), findsOneWidget);
     expect(find.text('Watermark'), findsOneWidget);
+    expect(find.text('Highlight'), findsOneWidget);
     expect(find.text('Redact'), findsOneWidget);
     expect(find.text('PDF → Images'), findsOneWidget);
     expect(find.text('Images → PDF'), findsOneWidget);
@@ -205,6 +206,25 @@ void main() {
     expect(matches.first.nw, greaterThan(0));
 
     expect(await PdfService.findText(bytes, 'notpresent'), isEmpty);
+  });
+
+  test('highlight keeps text selectable (no flatten)', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add().graphics.drawString(
+        'highlight me',
+        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 14),
+        bounds: const Rect.fromLTWH(50, 100, 200, 30));
+    final plain = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    final marked = await PdfService.highlight(plain, const [
+      HighlightBox(0, Rect.fromLTWH(48, 98, 120, 24), 255, 241, 118),
+    ]);
+    final result = sf.PdfDocument(inputBytes: marked);
+    final text = sf.PdfTextExtractor(result).extractText();
+    result.dispose();
+    // Non-destructive: the underlying text survives.
+    expect(text.contains('highlight me'), isTrue);
   });
 
   test('range parser handles lists, ranges and clamping', () {

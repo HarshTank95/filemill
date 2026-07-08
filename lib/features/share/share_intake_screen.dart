@@ -12,6 +12,7 @@ import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
+import '../highlight/highlight_screen.dart';
 import '../protect/protect_screen.dart';
 import '../redact/redact_screen.dart';
 import '../searchable/searchable_screen.dart';
@@ -204,6 +205,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(SearchableScreen(initial: pdf)));
       add(Tool.watermark, 'Stamp text or page numbers',
           () => _go(WatermarkScreen(initial: pdf)));
+      add(Tool.highlight, 'Highlight text',
+          () => _go(HighlightScreen(initial: pdf)));
       add(Tool.redact, 'Black out sensitive info',
           () => _go(RedactScreen(initial: pdf)));
       add(Tool.merge, 'Combine with more PDFs',

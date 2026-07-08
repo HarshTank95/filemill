@@ -8,6 +8,7 @@ import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../compress/compress_screen.dart';
+import '../highlight/highlight_screen.dart';
 import '../history/history_screen.dart';
 import '../image_convert/image_convert_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
@@ -44,6 +45,8 @@ class HomeScreen extends StatelessWidget {
         return const CompressScreen();
       case Tool.watermark:
         return const WatermarkScreen();
+      case Tool.highlight:
+        return const HighlightScreen();
       case Tool.redact:
         return const RedactScreen();
       case Tool.pdfToImages:
@@ -72,6 +75,7 @@ class HomeScreen extends StatelessWidget {
       Tool.organize,
       Tool.compress,
       Tool.protect,
+      Tool.highlight,
       Tool.redact,
       Tool.watermark,
       Tool.pdfToImages,
