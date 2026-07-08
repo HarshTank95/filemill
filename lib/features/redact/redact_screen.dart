@@ -50,6 +50,10 @@ class _RedactScreenState extends State<RedactScreen> {
   Rect? _draftRect;
   _DragMode _dragMode = _DragMode.none;
   bool _pixelateStyle = false;
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+  final _zoomController = TransformationController();
+  bool _zoomMode = false;
 
   @override
   void initState() {
@@ -60,7 +64,53 @@ class _RedactScreenState extends State<RedactScreen> {
   @override
   void dispose() {
     _cache?.doc.close();
+    _search.dispose();
+    _searchFocus.dispose();
+    _zoomController.dispose();
     super.dispose();
+  }
+
+  /// Finds every occurrence of the query and marks each as a redaction box
+  /// in the currently-selected style.
+  Future<void> _findAndMark() async {
+    final query = _search.text.trim();
+    final item = _item;
+    if (query.isEmpty || item == null) return;
+    final matches = await runBusy<List<TextMatch>>(
+      context,
+      label: 'Searching for "$query"…',
+      task: () async => PdfService.findText(await item.readBytes(), query),
+    );
+    if (matches == null || !mounted) return;
+    if (matches.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'No matches. Scanned PDFs have no text layer — draw boxes by hand or make it searchable first.'),
+      ));
+      return;
+    }
+    setState(() {
+      for (final m in matches) {
+        _boxes.add(_Redaction(
+          m.pageIndex,
+          Rect.fromLTWH(m.nx, m.ny, m.nw, m.nh),
+          _pixelateStyle,
+        ));
+      }
+    });
+    final firstPage = matches.first.pageIndex;
+    if (firstPage != _pageIndex) await _showPage(firstPage);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+          'Marked ${matches.length} match${matches.length == 1 ? '' : 'es'} — review, then redact.'),
+    ));
+    // Drop the keyboard so the whole page is visible for review, but keep
+    // the query so another term is just a tap away. Select it so retyping
+    // replaces it.
+    _searchFocus.unfocus();
+    _search.selection =
+        TextSelection(baseOffset: 0, extentOffset: _search.text.length);
   }
 
   Future<void> _pick() async {
@@ -98,6 +148,7 @@ class _RedactScreenState extends State<RedactScreen> {
     setState(() {
       _pageIndex = index;
       _selected = null;
+      _zoomController.value = Matrix4.identity(); // fresh page starts fit
     });
     final size = await cache.doc.pageSize(index);
     if (!mounted) return;
@@ -197,6 +248,19 @@ class _RedactScreenState extends State<RedactScreen> {
         actions: [
           if (cache != null)
             IconButton(
+              tooltip: _zoomMode ? 'Back to drawing' : 'Zoom to review',
+              isSelected: _zoomMode,
+              icon: Icon(
+                  _zoomMode ? Icons.edit_rounded : Icons.zoom_in_rounded),
+              onPressed: () => setState(() {
+                _zoomMode = !_zoomMode;
+                _selected = null;
+                // Zoom is kept when switching to draw mode — you can draw
+                // and adjust while zoomed in. Double-tap resets it.
+              }),
+            ),
+          if (cache != null)
+            IconButton(
               tooltip: 'Open another PDF',
               icon: const Icon(Icons.folder_open_rounded),
               onPressed: _pick,
@@ -208,7 +272,7 @@ class _RedactScreenState extends State<RedactScreen> {
               icon: Tool.redact.style.icon,
               title: 'Black it out — for real',
               message:
-                  'Drag boxes over account numbers, addresses, anything private. FileMill destroys the content underneath, not just covers it.',
+                  'Search for text to auto-mark it, or drag boxes over anything private. FileMill destroys the content underneath, not just covers it.',
               action: FilledButton.icon(
                 onPressed: _pick,
                 icon: const Icon(Icons.folder_open_rounded),
@@ -217,6 +281,36 @@ class _RedactScreenState extends State<RedactScreen> {
             )
           : Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _search,
+                          focusNode: _searchFocus,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (_) => _findAndMark(),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            hintText: 'Find text to redact…',
+                            prefixIcon: Icon(Icons.search_rounded),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(64, 50),
+                          backgroundColor: Tool.redact.style.base,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _findAndMark,
+                        child: const Text('Find'),
+                      ),
+                    ],
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
                   child: SizedBox(
@@ -241,7 +335,9 @@ class _RedactScreenState extends State<RedactScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                   child: Text(
-                    'Drag on the page to cover something · tap a box to select, then drag to move or use the corner to resize',
+                    _zoomMode
+                        ? 'Zoom mode: pinch to zoom, drag to pan, double-tap to reset · tap the pencil to draw'
+                        : 'Drag to cover something · tap a box to move/resize · tap the magnifier to zoom in',
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall
@@ -258,13 +354,30 @@ class _RedactScreenState extends State<RedactScreen> {
                           builder: (context, constraints) {
                             final w = constraints.maxWidth;
                             final h = constraints.maxHeight;
-                            return GestureDetector(
-                              onTapUp: (d) => _onTap(d.localPosition, w, h),
-                              onPanStart: (d) =>
-                                  _onPanStart(d.localPosition, w, h),
-                              onPanUpdate: (d) =>
-                                  _onPanUpdate(d, w, h),
-                              onPanEnd: (_) => _onPanEnd(w, h),
+                            return InteractiveViewer(
+                              transformationController: _zoomController,
+                              panEnabled: _zoomMode,
+                              scaleEnabled: _zoomMode,
+                              minScale: 1,
+                              maxScale: 6,
+                              child: GestureDetector(
+                              // In zoom mode the handlers are removed so the
+                              // InteractiveViewer receives pinch/pan instead.
+                              onDoubleTap: _zoomMode
+                                  ? () => setState(() => _zoomController
+                                      .value = Matrix4.identity())
+                                  : null,
+                              onTapUp: _zoomMode
+                                  ? null
+                                  : (d) => _onTap(d.localPosition, w, h),
+                              onPanStart: _zoomMode
+                                  ? null
+                                  : (d) => _onPanStart(d.localPosition, w, h),
+                              onPanUpdate: _zoomMode
+                                  ? null
+                                  : (d) => _onPanUpdate(d, w, h),
+                              onPanEnd:
+                                  _zoomMode ? null : (_) => _onPanEnd(w, h),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white,
@@ -308,6 +421,7 @@ class _RedactScreenState extends State<RedactScreen> {
                                   ],
                                 ),
                               ),
+                            ),
                             );
                           },
                         ),
@@ -554,20 +668,20 @@ class _RedactScreenState extends State<RedactScreen> {
 
   Widget _buildBox(_Redaction box, double w, double h, ColorScheme scheme) {
     final selected = identical(box, _selected);
+    // On-screen boxes are PENDING marks (translucent, so the content under
+    // them stays visible for review) — the destructive black/mosaic is only
+    // applied on "Redact". A red border signals "will be removed".
     final Widget fill;
     if (box.pixelate) {
-      // Frosted preview — the output uses a coarse irreversible mosaic.
       fill = ClipRect(
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-          child: Container(
-            color: Colors.white.withValues(alpha: 0.25),
-          ),
+          filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: Container(color: Colors.white.withValues(alpha: 0.2)),
         ),
       );
     } else {
       fill = Container(
-        color: Colors.black.withValues(alpha: selected ? 0.75 : 0.88),
+        color: Colors.black.withValues(alpha: selected ? 0.5 : 0.42),
       );
     }
     return Positioned(
@@ -578,9 +692,10 @@ class _RedactScreenState extends State<RedactScreen> {
       child: IgnorePointer(
         child: Container(
           foregroundDecoration: BoxDecoration(
-            border: selected
-                ? Border.all(color: scheme.primary, width: 2)
-                : null,
+            border: Border.all(
+              color: selected ? scheme.primary : const Color(0xFFE53935),
+              width: selected ? 2.5 : 1.5,
+            ),
           ),
           child: Stack(
             fit: StackFit.expand,

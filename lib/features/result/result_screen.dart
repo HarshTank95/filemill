@@ -6,6 +6,9 @@ import '../../core/services/file_service.dart';
 import '../../core/services/history_service.dart';
 import '../../core/services/render_service.dart';
 import '../../ui/common.dart';
+import '../../ui/motion.dart';
+import '../../ui/theme.dart';
+import '../viewer/viewer_screen.dart';
 
 /// Success screen every tool lands on: animated confirmation, preview,
 /// Save / Share actions. Multi-file outputs are saved as a single ZIP
@@ -153,28 +156,73 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
 
+  bool get _isPdf => _single.mime == 'application/pdf';
+
+  Future<void> _preview() async {
+    final tmp = await FileService.writeTemp(_single.name, _single.bytes);
+    if (!mounted) return;
+    Navigator.of(context).push(Motion.fadeThrough(
+        ViewerScreen(path: tmp.path, name: _single.name)));
+  }
+
   Widget _buildPreview(ColorScheme scheme) {
     if (!_isMulti) {
       return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              if (_pdfThumb != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 260),
-                    child: Image.memory(_pdfThumb!, fit: BoxFit.contain),
-                  ),
-                )
-              else
-                GradientBadge(style: widget.tool.style, size: 64),
-              const SizedBox(height: 14),
-              Text(_single.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center),
-            ],
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: _isPdf ? _preview : null,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                if (_pdfThumb != null)
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ConstrainedBox(
+                          constraints:
+                              const BoxConstraints(maxHeight: 260),
+                          child:
+                              Image.memory(_pdfThumb!, fit: BoxFit.contain),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: scheme.inverseSurface
+                                .withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.zoom_in_rounded,
+                                  size: 15,
+                                  color: scheme.onInverseSurface),
+                              const SizedBox(width: 4),
+                              Text('Tap to preview',
+                                  style: AppTheme.manrope(700,
+                                      size: 11,
+                                      color: scheme.onInverseSurface)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  GradientBadge(style: widget.tool.style, size: 64),
+                const SizedBox(height: 14),
+                Text(_single.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center),
+              ],
+            ),
           ),
         ),
       );

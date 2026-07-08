@@ -62,6 +62,75 @@ class PdfService {
   /// original quality.
   static Future<Uint8List> redact(Uint8List bytes, List<RedactPage> pages) =>
       compute(_redact, _RedactArgs(bytes, pages));
+
+  /// Finds every occurrence of [query] (case-insensitive) in the document's
+  /// text layer and returns its location as a normalized (0..1) box per
+  /// page. Scanned PDFs with no text layer return nothing.
+  static Future<List<TextMatch>> findText(Uint8List bytes, String query) =>
+      compute(_findText, _FindArgs(bytes, query));
+}
+
+/// A located text hit: normalized (0..1) box with a top-left origin.
+class TextMatch {
+  final int pageIndex;
+  final double nx, ny, nw, nh;
+  const TextMatch(this.pageIndex, this.nx, this.ny, this.nw, this.nh);
+}
+
+class _FindArgs {
+  final Uint8List bytes;
+  final String query;
+  const _FindArgs(this.bytes, this.query);
+}
+
+List<TextMatch> _findText(_FindArgs args) {
+  final query = args.query.trim().toLowerCase();
+  if (query.isEmpty) return const [];
+  final tokens = query.split(RegExp(r'\s+'));
+  final doc = PdfDocument(inputBytes: args.bytes);
+  final lines = PdfTextExtractor(doc).extractTextLines();
+  final sizes = <int, Size>{};
+  final matches = <TextMatch>[];
+
+  TextMatch toMatch(int page, Rect r) {
+    final size = sizes.putIfAbsent(page, () => doc.pages[page].size);
+    // Pad slightly so the box fully covers the glyphs.
+    final left = ((r.left - 1) / size.width).clamp(0.0, 1.0);
+    final top = ((r.top - 1) / size.height).clamp(0.0, 1.0);
+    final w = ((r.width + 2) / size.width).clamp(0.0, 1.0 - left);
+    final h = ((r.height + 2) / size.height).clamp(0.0, 1.0 - top);
+    return TextMatch(page, left, top, w, h);
+  }
+
+  for (final line in lines) {
+    final words = line.wordCollection;
+    if (tokens.length == 1) {
+      for (final word in words) {
+        if (word.text.toLowerCase().contains(query)) {
+          matches.add(toMatch(line.pageIndex, word.bounds));
+        }
+      }
+    } else {
+      // A phrase: find consecutive words matching the token sequence.
+      for (var i = 0; i + tokens.length <= words.length; i++) {
+        var ok = true;
+        for (var j = 0; j < tokens.length; j++) {
+          if (!words[i + j].text.toLowerCase().contains(tokens[j])) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        var r = words[i].bounds;
+        for (var j = 1; j < tokens.length; j++) {
+          r = r.expandToInclude(words[i + j].bounds);
+        }
+        matches.add(toMatch(line.pageIndex, r));
+      }
+    }
+  }
+  doc.dispose();
+  return matches;
 }
 
 /// One page to flatten + black out. [boxes] are Rects in PDF points using

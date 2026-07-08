@@ -188,6 +188,25 @@ void main() {
     expect(text.contains('HIDDEN'), isTrue);
   });
 
+  test('find text locates a term and returns its page + box', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add().graphics.drawString(
+        'Account 12345 secret',
+        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 14),
+        bounds: const Rect.fromLTWH(50, 100, 300, 30));
+    final bytes = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    final matches = await PdfService.findText(bytes, '12345');
+    expect(matches, isNotEmpty);
+    expect(matches.first.pageIndex, 0);
+    expect(matches.first.nx, greaterThan(0));
+    expect(matches.first.ny, greaterThan(0));
+    expect(matches.first.nw, greaterThan(0));
+
+    expect(await PdfService.findText(bytes, 'notpresent'), isEmpty);
+  });
+
   test('range parser handles lists, ranges and clamping', () {
     expect(SelectionBar.parseRanges('1-3, 7', 10), {0, 1, 2, 6});
     expect(SelectionBar.parseRanges('2', 10), {1});
