@@ -113,6 +113,12 @@ enum Tool {
     ToolStyle([Color(0xFF1E88E5), Color(0xFF64C1FF)], Icons.picture_as_pdf_rounded),
     ToolCategory.create,
   ),
+  pdfToWord(
+    'PDF → Word',
+    'Editable .docx, on-device',
+    ToolStyle([Color(0xFF1565C0), Color(0xFF5E9CEA)], Icons.description_rounded),
+    ToolCategory.convert,
+  ),
   pdfToImages(
     'PDF → Images',
     'Export pages as PNG or JPG',

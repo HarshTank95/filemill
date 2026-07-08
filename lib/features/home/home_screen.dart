@@ -19,6 +19,7 @@ import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
+import '../pdf_to_word/pdf_to_word_screen.dart';
 import '../protect/protect_screen.dart';
 import '../redact/redact_screen.dart';
 import '../searchable/searchable_screen.dart';
@@ -75,6 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const HighlightScreen();
       case Tool.redact:
         return const RedactScreen();
+      case Tool.pdfToWord:
+        return const PdfToWordScreen();
       case Tool.pdfToImages:
         return const PdfToImagesScreen();
       case Tool.imagesToPdf:

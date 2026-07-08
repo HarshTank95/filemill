@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
+import 'package:filemill/core/services/docx.dart';
 import 'package:filemill/core/services/image_convert_service.dart';
 import 'package:filemill/core/services/pdf_service.dart';
 import 'package:filemill/core/services/scan_processor.dart';
@@ -37,7 +40,7 @@ void main() {
   });
 
   test('every tool has a category and the toolset is complete', () {
-    expect(Tool.values.length, 20);
+    expect(Tool.values.length, 21);
     for (final t in Tool.values) {
       expect(ToolCategory.values.contains(t.category), isTrue);
     }
@@ -304,6 +307,32 @@ void main() {
     expect(groups[2], [7, 8, 9]);
     // Out-of-range and reversed tokens are dropped.
     expect(SplitFilesScreen.parseRangeGroups('9-8, 20-25', 10), isEmpty);
+  });
+
+  test('docx builder produces a valid, readable Word file', () {
+    final bytes = DocxBuilder.build(const [
+      DocParagraph([DocRun('Resume', bold: true, halfPt: 32)], heading: 1),
+      DocParagraph([
+        DocRun('Harsh ', bold: true),
+        DocRun('Tank', italic: true),
+      ]),
+      DocParagraph([DocRun('Backend developer')], bullet: true),
+      DocParagraph([DocRun('Col A\tCol B')]),
+    ]);
+    // Valid zip container.
+    expect(String.fromCharCodes(bytes.take(2)), 'PK');
+    // The OOXML parts and content survive a round-trip through the zip.
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final names = archive.files.map((f) => f.name).toSet();
+    expect(names.contains('word/document.xml'), isTrue);
+    expect(names.contains('[Content_Types].xml'), isTrue);
+    final doc = utf8.decode(
+        archive.files.firstWhere((f) => f.name == 'word/document.xml').content
+            as List<int>);
+    expect(doc.contains('Resume'), isTrue);
+    expect(doc.contains('Backend developer'), isTrue);
+    expect(doc.contains('<w:tab/>'), isTrue); // tab-aligned columns
+    expect(doc.contains('Heading1'), isTrue);
   });
 
   test('range parser handles lists, ranges and clamping', () {

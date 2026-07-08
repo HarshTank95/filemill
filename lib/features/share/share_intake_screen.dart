@@ -13,6 +13,7 @@ import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
+import '../pdf_to_word/pdf_to_word_screen.dart';
 import '../addtext/addtext_screen.dart';
 import '../crop/crop_pdf_screen.dart';
 import '../highlight/highlight_screen.dart';
@@ -205,6 +206,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(CropPdfScreen(initial: pdf)));
       add(Tool.pdfToImages, 'Export pages as PNG or JPG',
           () => _go(PdfToImagesScreen(initial: pdf)));
+      add(Tool.pdfToWord, 'Convert to editable Word',
+          () => _go(PdfToWordScreen(initial: pdf)));
       add(Tool.ocr, 'Recognize text on every page',
           () => _go(OcrScreen(initialPdf: pdf)));
       add(Tool.protect, 'Add or remove a password',
