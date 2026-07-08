@@ -35,6 +35,7 @@ void main() {
     expect(find.text('Crop PDF'), findsOneWidget);
     expect(find.text('Protect PDF'), findsOneWidget);
     expect(find.text('Sign PDF'), findsOneWidget);
+    expect(find.text('Draw'), findsOneWidget);
     expect(find.text('Add Text'), findsOneWidget);
     expect(find.text('Compress PDF'), findsOneWidget);
     expect(find.text('Watermark'), findsOneWidget);
@@ -269,6 +270,28 @@ void main() {
     // Half width/height of the original A4.
     expect((size.width - 595 * 0.5).abs(), lessThan(2));
     expect((size.height - 842 * 0.5).abs(), lessThan(2));
+  });
+
+  test('drawInk writes ink onto the page and keeps it valid', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add();
+    final plain = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    final inked = await PdfService.drawInk(plain, const [
+      InkStroke(0, 229, 57, 53, 0.007, InkShape.pen, [
+        Offset(0.2, 0.2),
+        Offset(0.5, 0.4),
+        Offset(0.7, 0.3),
+      ]),
+      InkStroke(0, 30, 136, 229, 0.007, InkShape.arrow, [
+        Offset(0.3, 0.6),
+        Offset(0.7, 0.7),
+      ]),
+    ]);
+    expect(String.fromCharCodes(inked.take(5)), '%PDF-');
+    expect(await PdfService.pageCount(inked), 1);
+    expect(inked.length, greaterThan(plain.length));
   });
 
   test('range parser handles lists, ranges and clamping', () {

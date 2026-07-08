@@ -6,6 +6,7 @@ import '../../core/services/file_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../compress/compress_screen.dart';
+import '../draw/draw_screen.dart';
 import '../image_convert/image_convert_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
 import '../merge/merge_screen.dart';
@@ -213,6 +214,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(WatermarkScreen(initial: pdf)));
       add(Tool.highlight, 'Highlight text',
           () => _go(HighlightScreen(initial: pdf)));
+      add(Tool.draw, 'Mark up with a pen',
+          () => _go(DrawScreen(initial: pdf)));
       add(Tool.redact, 'Black out sensitive info',
           () => _go(RedactScreen(initial: pdf)));
       add(Tool.merge, 'Combine with more PDFs',

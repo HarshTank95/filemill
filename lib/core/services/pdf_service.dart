@@ -84,6 +84,73 @@ class PdfService {
   static Future<Uint8List> highlight(
           Uint8List bytes, List<HighlightBox> boxes) =>
       compute(_highlight, _HighlightArgs(bytes, boxes));
+
+  /// Draws freehand ink strokes onto pages as vector polylines.
+  static Future<Uint8List> drawInk(Uint8List bytes, List<InkStroke> strokes) =>
+      compute(_drawInk, _InkArgs(bytes, strokes));
+}
+
+enum InkShape { pen, line, arrow, rect, ellipse }
+
+/// A drawn mark: normalized (0..1) points, RGB color, width as a fraction of
+/// the page width, and a shape kind.
+class InkStroke {
+  final int pageIndex;
+  final int r, g, b;
+  final double width;
+  final InkShape shape;
+  final List<Offset> points;
+  const InkStroke(
+      this.pageIndex, this.r, this.g, this.b, this.width, this.shape, this.points);
+}
+
+class _InkArgs {
+  final Uint8List bytes;
+  final List<InkStroke> strokes;
+  const _InkArgs(this.bytes, this.strokes);
+}
+
+Future<Uint8List> _drawInk(_InkArgs args) async {
+  final doc = PdfDocument(inputBytes: args.bytes);
+  final sizes = <int, Size>{};
+  for (final s in args.strokes) {
+    if (s.points.length < 2) continue;
+    final page = doc.pages[s.pageIndex];
+    final size = sizes.putIfAbsent(s.pageIndex, () => page.size);
+    final pen = PdfPen(PdfColor(s.r, s.g, s.b), width: s.width * size.width)
+      ..lineCap = PdfLineCap.round
+      ..lineJoin = PdfLineJoin.round;
+    final g = page.graphics;
+    Offset pt(Offset p) => Offset(p.dx * size.width, p.dy * size.height);
+    final a = pt(s.points.first), b = pt(s.points.last);
+    switch (s.shape) {
+      case InkShape.pen:
+        for (var i = 0; i < s.points.length - 1; i++) {
+          g.drawLine(pen, pt(s.points[i]), pt(s.points[i + 1]));
+        }
+      case InkShape.line:
+        g.drawLine(pen, a, b);
+      case InkShape.arrow:
+        g.drawLine(pen, a, b);
+        final ang = math.atan2(b.dy - a.dy, b.dx - a.dx);
+        final len = size.width * 0.022;
+        for (final off in [0.5, -0.5]) {
+          g.drawLine(
+            pen,
+            b,
+            Offset(b.dx + len * math.cos(ang + math.pi + off),
+                b.dy + len * math.sin(ang + math.pi + off)),
+          );
+        }
+      case InkShape.rect:
+        g.drawRectangle(pen: pen, bounds: Rect.fromPoints(a, b));
+      case InkShape.ellipse:
+        g.drawEllipse(Rect.fromPoints(a, b), pen: pen);
+    }
+  }
+  final out = Uint8List.fromList(await doc.save());
+  doc.dispose();
+  return out;
 }
 
 /// A highlighter mark: rect in PDF points (top-left) + RGB color.

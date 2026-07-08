@@ -35,6 +35,11 @@ enum Tool {
     'Draw & place your signature',
     ToolStyle([Color(0xFF00695C), Color(0xFF2BB39A)], Icons.draw_rounded),
   ),
+  draw(
+    'Draw',
+    'Freehand pen markup',
+    ToolStyle([Color(0xFFEC407A), Color(0xFFF48FB1)], Icons.gesture_rounded),
+  ),
   addText(
     'Add Text',
     'Fill forms · type on PDF',

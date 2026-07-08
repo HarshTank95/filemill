@@ -11,6 +11,7 @@ import '../about/about_screen.dart';
 import '../addtext/addtext_screen.dart';
 import '../compress/compress_screen.dart';
 import '../crop/crop_pdf_screen.dart';
+import '../draw/draw_screen.dart';
 import '../highlight/highlight_screen.dart';
 import '../history/history_screen.dart';
 import '../image_convert/image_convert_screen.dart';
@@ -44,6 +45,8 @@ class HomeScreen extends StatelessWidget {
         return const CropPdfScreen();
       case Tool.sign:
         return const SignScreen();
+      case Tool.draw:
+        return const DrawScreen();
       case Tool.addText:
         return const AddTextScreen();
       case Tool.protect:
@@ -85,6 +88,7 @@ class HomeScreen extends StatelessWidget {
       Tool.compress,
       Tool.protect,
       Tool.highlight,
+      Tool.draw,
       Tool.redact,
       Tool.watermark,
       Tool.pdfToImages,
