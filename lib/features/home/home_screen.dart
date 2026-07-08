@@ -7,8 +7,9 @@ import '../../core/services/history_service.dart';
 import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
-import '../compress/compress_screen.dart';
 import '../addtext/addtext_screen.dart';
+import '../compress/compress_screen.dart';
+import '../crop/crop_pdf_screen.dart';
 import '../highlight/highlight_screen.dart';
 import '../history/history_screen.dart';
 import '../image_convert/image_convert_screen.dart';
@@ -38,6 +39,8 @@ class HomeScreen extends StatelessWidget {
         return const SplitScreen();
       case Tool.organize:
         return const OrganizeScreen();
+      case Tool.crop:
+        return const CropPdfScreen();
       case Tool.sign:
         return const SignScreen();
       case Tool.addText:
@@ -77,6 +80,7 @@ class HomeScreen extends StatelessWidget {
       Tool.merge,
       Tool.split,
       Tool.organize,
+      Tool.crop,
       Tool.compress,
       Tool.protect,
       Tool.highlight,

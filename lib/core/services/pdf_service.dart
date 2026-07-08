@@ -33,6 +33,11 @@ class PdfService {
     );
   }
 
+  /// Crops the listed pages to a normalized (0..1) region; pages not listed
+  /// are copied at full size. Rebuilds via template redraw (vector-safe).
+  static Future<Uint8List> crop(Uint8List bytes, List<CropPage> pages) =>
+      compute(_crop, _CropArgs(bytes, pages));
+
   /// True if the document requires a password to open.
   static Future<bool> isProtected(Uint8List bytes) =>
       compute(_isProtected, bytes);
@@ -525,6 +530,50 @@ class _RebuildArgs {
   final Uint8List source;
   final List<List<int>> edits;
   const _RebuildArgs(this.source, this.edits);
+}
+
+class CropPage {
+  final int pageIndex;
+  final double nx, ny, nw, nh;
+  const CropPage(this.pageIndex, this.nx, this.ny, this.nw, this.nh);
+}
+
+class _CropArgs {
+  final Uint8List bytes;
+  final List<CropPage> pages;
+  const _CropArgs(this.bytes, this.pages);
+}
+
+Future<Uint8List> _crop(_CropArgs args) async {
+  final src = PdfDocument(inputBytes: args.bytes);
+  final out = PdfDocument();
+  out.pageSettings.margins.all = 0;
+  final map = {for (final p in args.pages) p.pageIndex: p};
+  for (var i = 0; i < src.pages.count; i++) {
+    final crop = map[i];
+    if (crop == null) {
+      _appendPage(out, src.pages[i], 0);
+      continue;
+    }
+    final size = src.pages[i].size;
+    final cw = crop.nw * size.width;
+    final ch = crop.nh * size.height;
+    final cx = crop.nx * size.width;
+    final cy = crop.ny * size.height;
+    out.pageSettings.orientation =
+        cw > ch ? PdfPageOrientation.landscape : PdfPageOrientation.portrait;
+    out.pageSettings.size = Size(cw, ch);
+    out.pageSettings.rotate = PdfPageRotateAngle.rotateAngle0;
+    final page = out.pages.add();
+    // Shift the full-page template up-left so the crop region lands at the
+    // origin; content outside the smaller page is clipped away.
+    page.graphics
+        .drawPdfTemplate(src.pages[i].createTemplate(), Offset(-cx, -cy), size);
+  }
+  src.dispose();
+  final result = Uint8List.fromList(await out.save());
+  out.dispose();
+  return result;
 }
 
 int _pageCount(Uint8List bytes) {

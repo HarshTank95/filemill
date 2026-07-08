@@ -13,6 +13,7 @@ import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
 import '../addtext/addtext_screen.dart';
+import '../crop/crop_pdf_screen.dart';
 import '../highlight/highlight_screen.dart';
 import '../protect/protect_screen.dart';
 import '../redact/redact_screen.dart';
@@ -196,6 +197,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(SplitScreen(initial: pdf)));
       add(Tool.organize, 'Reorder, rotate or delete pages',
           () => _go(OrganizeScreen(initial: pdf)));
+      add(Tool.crop, 'Trim margins or crop pages',
+          () => _go(CropPdfScreen(initial: pdf)));
       add(Tool.pdfToImages, 'Export pages as PNG or JPG',
           () => _go(PdfToImagesScreen(initial: pdf)));
       add(Tool.ocr, 'Recognize text on every page',

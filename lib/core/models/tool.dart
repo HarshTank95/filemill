@@ -25,6 +25,11 @@ enum Tool {
     'Reorder · rotate · delete pages',
     ToolStyle([Color(0xFFF4511E), Color(0xFFFF8A65)], Icons.dashboard_customize_rounded),
   ),
+  crop(
+    'Crop PDF',
+    'Trim margins · crop pages',
+    ToolStyle([Color(0xFF6D4C41), Color(0xFFA98274)], Icons.crop_rounded),
+  ),
   sign(
     'Sign PDF',
     'Draw & place your signature',

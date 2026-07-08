@@ -32,6 +32,7 @@ void main() {
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('Split PDF'), findsOneWidget);
     expect(find.text('Organize'), findsOneWidget);
+    expect(find.text('Crop PDF'), findsOneWidget);
     expect(find.text('Protect PDF'), findsOneWidget);
     expect(find.text('Sign PDF'), findsOneWidget);
     expect(find.text('Add Text'), findsOneWidget);
@@ -251,6 +252,23 @@ void main() {
     final text = sf.PdfTextExtractor(result).extractText();
     result.dispose();
     expect(text.contains('John Doe'), isTrue);
+  });
+
+  test('crop resizes the page to the requested region', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add(); // default A4 595x842
+    final plain = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    final cropped = await PdfService.crop(plain, const [
+      CropPage(0, 0.25, 0.25, 0.5, 0.5),
+    ]);
+    final result = sf.PdfDocument(inputBytes: cropped);
+    final size = result.pages[0].size;
+    result.dispose();
+    // Half width/height of the original A4.
+    expect((size.width - 595 * 0.5).abs(), lessThan(2));
+    expect((size.height - 842 * 0.5).abs(), lessThan(2));
   });
 
   test('range parser handles lists, ranges and clamping', () {
