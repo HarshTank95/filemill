@@ -51,6 +51,11 @@ class PdfService {
   static Future<Uint8List> stamp(Uint8List bytes, List<Stamp> stamps) =>
       compute(_stamp, _StampArgs(bytes, stamps));
 
+  /// Draws typed text onto existing pages (form filling). Vector text,
+  /// non-destructive to the rest of the page.
+  static Future<Uint8List> addText(Uint8List bytes, List<TextStamp> stamps) =>
+      compute(_addText, _TextStampArgs(bytes, stamps));
+
   /// Stamps a diagonal text watermark and/or page numbers onto every page.
   static Future<Uint8List> watermark(
           Uint8List bytes, WatermarkOptions options) =>
@@ -398,6 +403,72 @@ Future<Uint8List> _stamp(_StampArgs args) async {
     doc.pages[s.pageIndex].graphics.drawImage(
       PdfBitmap(s.png),
       Rect.fromLTWH(s.x, s.y, s.width, s.height),
+    );
+  }
+  final out = Uint8List.fromList(await doc.save());
+  doc.dispose();
+  return out;
+}
+
+enum PdfFontKind { sans, serif, mono }
+
+class TextStamp {
+  final int pageIndex;
+  final String text;
+  final double x, y, width, fontSize;
+  final int r, g, b;
+  final bool bold, italic, underline;
+  final PdfFontKind family;
+  const TextStamp({
+    required this.pageIndex,
+    required this.text,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.fontSize,
+    required this.r,
+    required this.g,
+    required this.b,
+    this.bold = false,
+    this.italic = false,
+    this.underline = false,
+    this.family = PdfFontKind.sans,
+  });
+}
+
+class _TextStampArgs {
+  final Uint8List bytes;
+  final List<TextStamp> stamps;
+  const _TextStampArgs(this.bytes, this.stamps);
+}
+
+Future<Uint8List> _addText(_TextStampArgs args) async {
+  final doc = PdfDocument(inputBytes: args.bytes);
+  for (final t in args.stamps) {
+    final page = doc.pages[t.pageIndex];
+    final size = page.getClientSize();
+    final PdfFontFamily family;
+    switch (t.family) {
+      case PdfFontKind.sans:
+        family = PdfFontFamily.helvetica;
+      case PdfFontKind.serif:
+        family = PdfFontFamily.timesRoman;
+      case PdfFontKind.mono:
+        family = PdfFontFamily.courier;
+    }
+    final styles = <PdfFontStyle>[
+      if (t.bold) PdfFontStyle.bold,
+      if (t.italic) PdfFontStyle.italic,
+      if (t.underline) PdfFontStyle.underline,
+    ];
+    final font = styles.isEmpty
+        ? PdfStandardFont(family, t.fontSize)
+        : PdfStandardFont(family, t.fontSize, multiStyle: styles);
+    page.graphics.drawString(
+      t.text,
+      font,
+      brush: PdfSolidBrush(PdfColor(t.r, t.g, t.b)),
+      bounds: Rect.fromLTWH(t.x, t.y, t.width, size.height - t.y),
     );
   }
   final out = Uint8List.fromList(await doc.save());

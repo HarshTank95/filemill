@@ -8,6 +8,7 @@ import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../compress/compress_screen.dart';
+import '../addtext/addtext_screen.dart';
 import '../highlight/highlight_screen.dart';
 import '../history/history_screen.dart';
 import '../image_convert/image_convert_screen.dart';
@@ -39,6 +40,8 @@ class HomeScreen extends StatelessWidget {
         return const OrganizeScreen();
       case Tool.sign:
         return const SignScreen();
+      case Tool.addText:
+        return const AddTextScreen();
       case Tool.protect:
         return const ProtectScreen();
       case Tool.compress:
@@ -70,6 +73,7 @@ class HomeScreen extends StatelessWidget {
     const pdfTools = [
       Tool.viewer,
       Tool.sign,
+      Tool.addText,
       Tool.merge,
       Tool.split,
       Tool.organize,

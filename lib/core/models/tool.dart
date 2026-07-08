@@ -30,6 +30,11 @@ enum Tool {
     'Draw & place your signature',
     ToolStyle([Color(0xFF00695C), Color(0xFF2BB39A)], Icons.draw_rounded),
   ),
+  addText(
+    'Add Text',
+    'Fill forms · type on PDF',
+    ToolStyle([Color(0xFF00838F), Color(0xFF4DD0E1)], Icons.text_fields_rounded),
+  ),
   protect(
     'Protect PDF',
     'Lock or unlock with a password',

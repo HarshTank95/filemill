@@ -34,6 +34,7 @@ void main() {
     expect(find.text('Organize'), findsOneWidget);
     expect(find.text('Protect PDF'), findsOneWidget);
     expect(find.text('Sign PDF'), findsOneWidget);
+    expect(find.text('Add Text'), findsOneWidget);
     expect(find.text('Compress PDF'), findsOneWidget);
     expect(find.text('Watermark'), findsOneWidget);
     expect(find.text('Highlight'), findsOneWidget);
@@ -225,6 +226,31 @@ void main() {
     result.dispose();
     // Non-destructive: the underlying text survives.
     expect(text.contains('highlight me'), isTrue);
+  });
+
+  test('add text writes vector text into the page', () async {
+    final doc = sf.PdfDocument();
+    doc.pages.add();
+    final plain = Uint8List.fromList(await doc.save());
+    doc.dispose();
+
+    final filled = await PdfService.addText(plain, const [
+      TextStamp(
+        pageIndex: 0,
+        text: 'John Doe',
+        x: 60,
+        y: 120,
+        width: 200,
+        fontSize: 14,
+        r: 20,
+        g: 20,
+        b: 20,
+      ),
+    ]);
+    final result = sf.PdfDocument(inputBytes: filled);
+    final text = sf.PdfTextExtractor(result).extractText();
+    result.dispose();
+    expect(text.contains('John Doe'), isTrue);
   });
 
   test('range parser handles lists, ranges and clamping', () {

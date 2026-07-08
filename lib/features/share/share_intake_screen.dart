@@ -12,6 +12,7 @@ import '../merge/merge_screen.dart';
 import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
+import '../addtext/addtext_screen.dart';
 import '../highlight/highlight_screen.dart';
 import '../protect/protect_screen.dart';
 import '../redact/redact_screen.dart';
@@ -189,6 +190,8 @@ class _ShareIntakeScreenState extends State<ShareIntakeScreen> {
           () => _go(ViewerScreen(path: pdf.path, name: pdf.name)));
       add(Tool.sign, 'Place your signature',
           () => _go(SignScreen(initial: pdf)));
+      add(Tool.addText, 'Fill in text',
+          () => _go(AddTextScreen(initial: pdf)));
       add(Tool.split, 'Extract pages from ${pdf.name}',
           () => _go(SplitScreen(initial: pdf)));
       add(Tool.organize, 'Reorder, rotate or delete pages',

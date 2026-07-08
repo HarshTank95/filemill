@@ -10,6 +10,7 @@ import '../../ui/common.dart';
 import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../ocr/ocr_screen.dart';
+import '../addtext/addtext_screen.dart';
 import '../compress/compress_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
@@ -122,6 +123,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
             ),
             _toolTile(sheetContext, Tool.sign, 'Place your signature',
                 SignScreen(initial: item)),
+            _toolTile(sheetContext, Tool.addText, 'Fill in text',
+                AddTextScreen(initial: item)),
             _toolTile(sheetContext, Tool.split, 'Extract pages',
                 SplitScreen(initial: item)),
             _toolTile(sheetContext, Tool.organize, 'Reorder, rotate, delete',
