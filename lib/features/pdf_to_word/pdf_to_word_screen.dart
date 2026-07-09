@@ -282,12 +282,13 @@ class _TransparencyNote extends StatelessWidget {
             const SizedBox(height: 12),
             row(Icons.check_circle_rounded, AppTheme.offlineGreen,
                 'Works great: text, paragraphs, headings, bold/italic, font sizes, '
-                'bullet & numbered lists, alignment.'),
+                'lists, alignment, indents, page breaks & page size — tables and '
+                'label/value rows are rebuilt at their exact positions with tab stops.'),
             row(Icons.change_history_rounded, const Color(0xFFEF9A00),
-                'May need touch-ups: multi-column layouts, tables (kept as tab-aligned '
-                'text), exact spacing.'),
+                'May need touch-ups: very dense or overlapping form layouts, and '
+                'exact line-by-line spacing.'),
             row(Icons.cancel_rounded, scheme.error,
-                'Not preserved: embedded images, exact page layout, and text colour '
+                'Not preserved: embedded images and text colour '
                 '(the PDF engine can\'t extract these on-device).'),
             row(Icons.document_scanner_rounded, Tool.pdfToWord.style.base,
                 'Scanned PDFs are read with on-device OCR, so they convert to editable '

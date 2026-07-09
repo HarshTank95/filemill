@@ -17,17 +17,32 @@ class DocRun {
   });
 }
 
+/// A tab stop, in twips from the left margin.
+class DocTab {
+  final int pos;
+  final bool right; // right-aligned stop (e.g. dates on a resume's edge)
+  const DocTab(this.pos, {this.right = false});
+}
+
 /// One reconstructed paragraph.
 class DocParagraph {
   final List<DocRun> runs;
   final int heading; // 0 = body, 1..3 = heading level
   final String align; // left | center | right | both
   final bool bullet;
+  final int indent; // left indent in twips (mirrors the PDF x position)
+  final int before; // spacing before in twips (mirrors the PDF y gap); -1 = default
+  final List<DocTab> tabs; // exact column positions from the PDF
+  final bool pageBreak; // start a new page before this paragraph
   const DocParagraph(
     this.runs, {
     this.heading = 0,
     this.align = 'left',
     this.bullet = false,
+    this.indent = 0,
+    this.before = -1,
+    this.tabs = const [],
+    this.pageBreak = false,
   });
 }
 
@@ -36,12 +51,16 @@ class DocParagraph {
 class DocxBuilder {
   DocxBuilder._();
 
-  static Uint8List build(List<DocParagraph> paragraphs) {
+  static Uint8List build(
+    List<DocParagraph> paragraphs, {
+    int pageWidth = 11906, // A4, twips
+    int pageHeight = 16838,
+  }) {
     final body = StringBuffer();
     for (final p in paragraphs) {
       body.write(_paragraph(p));
     }
-    body.write(_sectPr);
+    body.write(_sectPr(pageWidth, pageHeight));
 
     final document =
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -63,12 +82,29 @@ class DocxBuilder {
   }
 
   static String _paragraph(DocParagraph p) {
+    // Child order inside w:pPr follows the OOXML schema:
+    // pStyle, pageBreakBefore, tabs, spacing, ind, jc.
     final pPr = StringBuffer('<w:pPr>');
     if (p.heading > 0) {
       pPr.write('<w:pStyle w:val="Heading${p.heading.clamp(1, 3)}"/>');
     }
+    if (p.pageBreak) pPr.write('<w:pageBreakBefore/>');
+    if (p.tabs.isNotEmpty) {
+      pPr.write('<w:tabs>');
+      for (final t in p.tabs) {
+        pPr.write(
+            '<w:tab w:val="${t.right ? 'right' : 'left'}" w:pos="${t.pos}"/>');
+      }
+      pPr.write('</w:tabs>');
+    }
+    if (p.before >= 0) {
+      pPr.write('<w:spacing w:before="${p.before}" w:after="0"/>');
+    }
+    final left = p.indent + (p.bullet ? 360 : 0);
+    if (left > 0 || p.bullet) {
+      pPr.write('<w:ind w:left="$left"${p.bullet ? ' w:hanging="360"' : ''}/>');
+    }
     if (p.align != 'left') pPr.write('<w:jc w:val="${p.align}"/>');
-    if (p.bullet) pPr.write('<w:ind w:left="360" w:hanging="360"/>');
     pPr.write('</w:pPr>');
 
     final runs = StringBuffer();
@@ -143,7 +179,9 @@ class DocxBuilder {
       '<w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>'
       '</w:styles>';
 
-  static const _sectPr =
-      '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
-      '<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr>';
+  // Page size mirrors the source PDF; slim margins so indents and tab stops
+  // measured from the PDF land inside the text area.
+  static String _sectPr(int w, int h) =>
+      '<w:sectPr><w:pgSz w:w="$w" w:h="$h"${w > h ? ' w:orient="landscape"' : ''}/>'
+      '<w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr>';
 }
