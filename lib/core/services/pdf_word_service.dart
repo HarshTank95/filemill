@@ -49,7 +49,8 @@ class PdfWordService {
 
 List<PageData> _extract(Uint8List bytes) {
   final doc = PdfDocument(inputBytes: bytes);
-  final lines = PdfTextExtractor(doc).extractTextLines();
+  final extractor = PdfTextExtractor(doc);
+  final lines = extractor.extractTextLines();
   final byPage = <int, List<LineData>>{};
   for (final line in lines) {
     final words = <WordData>[];
@@ -87,8 +88,49 @@ List<PageData> _extract(Uint8List bytes) {
     // Growable so the OCR fallback can add lines for scanned pages.
     pages.add(PageData(size.width, size.height, byPage[i] ?? <LineData>[]));
   }
+
+  // Repair "glued" lines: some PDFs (notably LaTeX) encode word spacing as
+  // glyph kerning, and extractTextLines returns the whole line as one
+  // space-less word. The layout-text extraction DOES resolve those spaces,
+  // so look the line up there and take the spaced version.
+  for (var i = 0; i < pages.length; i++) {
+    final glued = pages[i].lines.where((l) => _looksGlued(l.text)).toList();
+    if (glued.isEmpty) continue;
+    final spacedByKey = <String, String>{};
+    final layout = extractor.extractText(
+        startPageIndex: i, endPageIndex: i, layoutText: true);
+    for (final raw in layout.split('\n')) {
+      final spaced = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (spaced.isEmpty) continue;
+      spacedByKey[spaced.replaceAll(' ', '')] = spaced;
+    }
+    for (final l in glued) {
+      final spaced = spacedByKey[l.text.trim()];
+      if (spaced == null || spaced == l.text.trim()) continue;
+      final idx = pages[i].lines.indexOf(l);
+      pages[i].lines[idx] = LineData(
+          spaced, l.x, l.y, l.w, l.h, l.size, l.bold, l.italic, l.underline, [
+        if (l.words.length == 1)
+          WordData(spaced, l.words[0].x, l.words[0].y, l.words[0].w,
+              l.words[0].h, l.words[0].size, l.words[0].bold,
+              l.words[0].italic, l.words[0].underline)
+        else
+          ...l.words
+      ]);
+    }
+  }
   doc.dispose();
   return pages;
+}
+
+/// A long, space-less, letter-heavy line — the glued-extraction signature.
+bool _looksGlued(String text) {
+  final s = text.trim();
+  if (s.length < 20 || s.contains(' ')) return false;
+  final letters = s.runes
+      .where((c) => (c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A))
+      .length;
+  return letters / s.length > 0.6;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +138,7 @@ List<PageData> _extract(Uint8List bytes) {
 // ---------------------------------------------------------------------------
 
 Uint8List _reconstruct(List<PageData> pages) {
+  pages = _repairCurrency(pages);
   final paragraphs = <DocParagraph>[];
   for (final page in pages) {
     final ps = _reconstructPage(page);
@@ -123,6 +166,44 @@ Uint8List _reconstruct(List<PageData> pages) {
   final ph = pages.isEmpty ? 842.0 : pages.first.height;
   return DocxBuilder.build(paragraphs,
       pageWidth: (pw * 20).round(), pageHeight: (ph * 20).round());
+}
+
+/// Some Indian bank PDFs map the rupee sign to Á (U+00C1) in their embedded
+/// font, so extraction yields "Á45,223.82". Repair only on document-level
+/// evidence: Á repeatedly precedes digits and NEVER precedes a letter in any
+/// clean line (real words like "Álvarez" would block it).
+List<PageData> _repairCurrency(List<PageData> pages) {
+  var beforeDigit = 0, beforeLetter = 0;
+  for (final p in pages) {
+    for (final l in p.lines) {
+      if (_isGarbage(l.text)) continue;
+      final t = l.text;
+      for (var i = 0; i < t.length; i++) {
+        if (t.codeUnitAt(i) != 0x00C1) continue;
+        var j = i + 1;
+        if (j < t.length && t[j] == ' ') j++;
+        if (j >= t.length) continue;
+        if (RegExp(r'[0-9]').hasMatch(t[j])) {
+          beforeDigit++;
+        } else if (RegExp(r'[A-Za-zÀ-ÿ]').hasMatch(t[j])) {
+          beforeLetter++;
+        }
+      }
+    }
+  }
+  if (beforeDigit < 3 || beforeLetter > 0) return pages;
+  return [
+    for (final p in pages)
+      PageData(p.width, p.height, [
+        for (final l in p.lines)
+          LineData(l.text.replaceAll('Á', '₹'), l.x, l.y, l.w, l.h, l.size,
+              l.bold, l.italic, l.underline, [
+            for (final w in l.words)
+              WordData(w.text.replaceAll('Á', '₹'), w.x, w.y, w.w, w.h,
+                  w.size, w.bold, w.italic, w.underline)
+          ])
+      ])
+  ];
 }
 
 /// A line placed in reading order, with the x origin ("base") its indent and
@@ -179,6 +260,9 @@ List<DocParagraph> _reconstructPage(PageData page) {
     // Rows with internal columns (tabs) stay their own paragraph so the
     // tab stops of one row never bleed into the next.
     final tabby = _multiSegment(line) || _multiSegment(prev);
+    // A line that stops well short of the text's right edge ends its
+    // paragraph — only wrapped lines (which run to the edge) continue it.
+    final prevEndsShort = rightEdge - (prev.x + prev.w) > bodySize * 8;
     if (gap >= 0 &&
         gap < bodySize * 0.8 &&
         sameLeft &&
@@ -186,6 +270,7 @@ List<DocParagraph> _reconstructPage(PageData page) {
         !heading &&
         !isList &&
         !tabby &&
+        !prevEndsShort &&
         pl.base == group.first.base) {
       group.add(pl); // soft wrap → same paragraph
     } else {
@@ -199,13 +284,16 @@ List<DocParagraph> _reconstructPage(PageData page) {
 
 /// Decides the page's reading order and the x base of every line.
 ///
-/// - A clearly bimodal page whose halves do NOT share rows is a newspaper
-///   layout → read column by column (each column is its own x base).
+/// - A true newspaper layout → read column by column (each column is its
+///   own x base). The test is strict, because misfiring on a label/value
+///   table scrambles it: BOTH columns must dominate the page, have tightly
+///   clustered x starts (text blocks share a left edge; table cells don't)
+///   and be mostly full lines of text (cells are short).
 /// - Everything else (single flow, forms, tables) → lines that share a row
 ///   (y overlap) are merged into one row so "label  value" and table rows
 ///   come out side by side instead of stacked.
 List<_Placed> _layout(List<LineData> lines, double pageWidth) {
-  if (lines.length >= 6 && pageWidth > 0) {
+  if (lines.length >= 12 && pageWidth > 0) {
     final mid = pageWidth / 2;
     final fullWidth = pageWidth * 0.55;
     final left = <LineData>[], right = <LineData>[];
@@ -213,17 +301,30 @@ List<_Placed> _layout(List<LineData> lines, double pageWidth) {
       if (l.w > fullWidth) continue;
       (l.x + l.w / 2 < mid ? left : right).add(l);
     }
-    if (left.length >= 3 && right.length >= 3) {
-      var aligned = 0;
-      for (final r in right) {
-        final ry = r.y + r.h / 2;
-        if (left.any((l) => (l.y + l.h / 2 - ry).abs() < (l.h + r.h) / 2)) {
-          aligned++;
-        }
-      }
-      if (aligned <= right.length * 0.5) {
-        return _newspaper(lines, fullWidth, mid, left, right);
-      }
+    bool clustered(List<LineData> col) {
+      final xs = col.map((l) => l.x).toList()..sort();
+      final modal = xs[xs.length ~/ 2];
+      final near =
+          xs.where((x) => (x - modal).abs() < pageWidth * 0.015).length;
+      return near >= col.length * 0.7;
+    }
+
+    bool filled(List<LineData> col, double colEnd) {
+      final start = _percentile(col.map((l) => l.x).toList(), 0.1);
+      final colWidth = colEnd - start;
+      if (colWidth <= 0) return false;
+      final full = col.where((l) => l.w >= colWidth * 0.6).length;
+      return full >= col.length * 0.6;
+    }
+
+    if (left.length >= 6 &&
+        right.length >= 6 &&
+        left.length + right.length >= lines.length * 0.6 &&
+        clustered(left) &&
+        clustered(right) &&
+        filled(left, mid) &&
+        filled(right, pageWidth * 0.96)) {
+      return _newspaper(lines, fullWidth, mid, left, right);
     }
   }
   final rows = _mergeRows(lines);
@@ -265,23 +366,29 @@ List<_Placed> _newspaper(List<LineData> lines, double fullWidth, double mid,
 /// cells of the same visual row stay together ("Date … 2000.00 … DR").
 /// Membership is judged against the row's FIRST line only — never against a
 /// growing band — so stacked lines can't chain distinct rows together.
+/// A line whose font size is wildly different from the anchor's (diagonal
+/// watermarks, decorations) never joins a row — it becomes its own.
 List<LineData> _mergeRows(List<LineData> lines) {
+  final used = List<bool>.filled(lines.length, false);
   final out = <LineData>[];
-  var i = 0;
-  while (i < lines.length) {
+  for (var i = 0; i < lines.length; i++) {
+    if (used[i]) continue;
     final anchor = lines[i];
     final row = <LineData>[anchor];
-    var j = i + 1;
-    while (j < lines.length) {
+    for (var j = i + 1; j < lines.length; j++) {
+      if (used[j]) continue;
       final l = lines[j];
+      if (l.y >= anchor.y + anchor.h) break; // y-sorted: nothing overlaps now
       final overlap =
           math.min(anchor.y + anchor.h, l.y + l.h) - math.max(anchor.y, l.y);
-      if (overlap <= 0.5 * math.min(l.h, anchor.h)) break;
+      if (overlap <= 0.5 * math.min(l.h, anchor.h)) continue;
+      final ratio =
+          anchor.size > 0 && l.size > 0 ? l.size / anchor.size : 1.0;
+      if (ratio < 0.55 || ratio > 1.8) continue;
       row.add(l);
-      j++;
+      used[j] = true;
     }
     out.add(row.length == 1 ? row.first : _mergeRow(row));
-    i = j;
   }
   return out;
 }
@@ -488,17 +595,21 @@ int _headingLevel(LineData line, double bodySize) {
 
 bool _listMarker(String text) {
   final t = text.trimLeft();
-  return RegExp(r'^([•▪●◦·‣\-\*]\s+|\d{1,3}[.)]\s+|[a-zA-Z][.)]\s+)').hasMatch(t);
+  // En/em dashes and bullets may sit flush against their text; a plain
+  // hyphen needs a following space (so "-107.43" isn't a list item).
+  // Asterisks are footnote markers, not bullets — leave them alone.
+  return RegExp(r'^([•▪●◦·‣–—]\s*\S|-\s+|\d{1,3}[.)]\s+|[a-zA-Z][.)]\s+)')
+      .hasMatch(t);
 }
 
 /// Only symbol bullets are replaced with Word's bullet — numbered/lettered
-/// markers ("1.", "a)") keep their literal text so numbering is preserved.
+/// markers ("1.", "a)"), dashes and asterisks keep their literal text.
 bool _symbolMarker(String text) =>
-    RegExp(r'^[•▪●◦·‣\*]\s+').hasMatch(text.trimLeft());
+    RegExp(r'^[•▪●◦·‣]\s*\S').hasMatch(text.trimLeft());
 
 String _stripLeadingMarker(String text, bool strip) {
   if (!strip) return text;
-  return text.replaceFirst(RegExp(r'^\s*[•▪●◦·‣\*]\s*'), '');
+  return text.replaceFirst(RegExp(r'^\s*[•▪●◦·‣]\s*'), '');
 }
 
 String _align(LineData line, double pageWidth) {
