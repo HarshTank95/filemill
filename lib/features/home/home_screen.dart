@@ -8,6 +8,7 @@ import '../../ui/motion.dart';
 import '../../ui/theme.dart';
 import '../about/about_screen.dart';
 import '../addtext/addtext_screen.dart';
+import '../compare/compare_screen.dart';
 import '../compress/compress_screen.dart';
 import '../crop/crop_pdf_screen.dart';
 import '../draw/draw_screen.dart';
@@ -51,6 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (tool) {
       case Tool.viewer:
         return const ViewerLauncherScreen();
+      case Tool.comparePdf:
+        return const CompareScreen();
       case Tool.merge:
         return const MergeScreen();
       case Tool.split:

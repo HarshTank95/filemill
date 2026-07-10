@@ -8,10 +8,13 @@ import 'package:image/image.dart' as img;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
+import 'package:pdf/widgets.dart' as pw;
+
 import 'package:filemill/core/services/docx.dart';
 import 'package:filemill/core/services/id_card_service.dart';
 import 'package:filemill/core/services/image_convert_service.dart';
 import 'package:filemill/core/services/ocr_service.dart';
+import 'package:filemill/core/services/pdf_compare_service.dart';
 import 'package:filemill/core/services/pdf_service.dart';
 import 'package:filemill/core/services/scan_processor.dart';
 import 'package:filemill/core/models/tool.dart';
@@ -42,7 +45,7 @@ void main() {
   });
 
   test('every tool has a category and the toolset is complete', () {
-    expect(Tool.values.length, 22);
+    expect(Tool.values.length, 23);
     for (final t in Tool.values) {
       expect(ToolCategory.values.contains(t.category), isTrue);
     }
@@ -131,6 +134,69 @@ void main() {
         IdCardService.textScore(
             ['Government of India', 'Tank Harsh Pareshkumar']),
         greaterThan(IdCardService.textScore(['|l', 'i)', 'm', '..'])));
+  });
+
+  test('compare pdfs: finds the exact planted changes and nothing else',
+      () async {
+    Future<Uint8List> makePdf(List<String> paragraphs) async {
+      final doc = pw.Document();
+      doc.addPage(pw.MultiPage(
+        build: (_) => [for (final p in paragraphs) pw.Paragraph(text: p)],
+      ));
+      return doc.save();
+    }
+
+    final filler = [
+      for (var i = 0; i < 30; i++)
+        'Clause $i of this agreement continues with standard boilerplate '
+            'text that both versions share word for word, entry $i.'
+    ];
+    final original = await makePdf([
+      'This agreement shall remain valid for thirty (30) days from signing.',
+      ...filler.take(15),
+      'Payment is due within seven days of the invoice date.',
+      ...filler.skip(15),
+    ]);
+    final revised = await makePdf([
+      'This agreement shall remain valid for sixty (60) days from signing.',
+      'An entirely new arbitration clause applies to all disputes hereunder.',
+      ...filler.take(15),
+      // payment sentence deleted
+      ...filler.skip(15),
+    ]);
+
+    final result = await PdfCompareService.compare(original, revised);
+    expect(result.pagesA, greaterThan(1)); // insertion shifts across pages
+    expect(result.blocks.length, 3,
+        reason: result.blocks
+            .map((b) => '${b.kind}: "${b.beforeText}" -> "${b.afterText}"')
+            .join('\n'));
+
+    final changed =
+        result.blocks.firstWhere((b) => b.kind == ChangeKind.changed);
+    expect(changed.beforeText, 'thirty (30)');
+    expect(changed.afterText, 'sixty (60)');
+
+    final added = result.blocks.firstWhere((b) => b.kind == ChangeKind.added);
+    expect(added.afterText, contains('arbitration clause'));
+    expect(added.beforeText, isEmpty);
+
+    final removed =
+        result.blocks.firstWhere((b) => b.kind == ChangeKind.removed);
+    expect(removed.beforeText, contains('Payment is due within seven days'));
+    expect(removed.afterText, isEmpty);
+
+    // Identical documents -> zero changes.
+    final same = await PdfCompareService.compare(original, original);
+    expect(same.identicalText, isTrue);
+
+    // Every changed token carries a real box for the highlight overlays.
+    for (final b in result.blocks) {
+      for (final t in [...b.before, ...b.after]) {
+        expect(t.w, greaterThan(0));
+        expect(t.h, greaterThan(0));
+      }
+    }
   });
 
   test('scan processor: identity warp keeps size, B&W output is binary',

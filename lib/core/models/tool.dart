@@ -23,6 +23,12 @@ enum Tool {
     ToolStyle([Color(0xFF5E35B1), Color(0xFF9C7BD8)], Icons.menu_book_rounded),
     ToolCategory.organize,
   ),
+  comparePdf(
+    'Compare PDFs',
+    'Spot every change between versions',
+    ToolStyle([Color(0xFFC62828), Color(0xFFEF9A9A)], Icons.compare_rounded),
+    ToolCategory.organize,
+  ),
   merge(
     'Merge PDF',
     'Combine PDFs into one',
