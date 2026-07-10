@@ -14,6 +14,22 @@ class OcrLine {
   const OcrLine(this.text, this.box);
 }
 
+/// One recognized word (ML Kit element) with its box.
+class OcrWord {
+  final String text;
+  final Rect box;
+  const OcrWord(this.text, this.box);
+}
+
+/// A line plus its word-level geometry — for features that need to locate
+/// specific tokens (e.g. masking Aadhaar digits).
+class OcrScanLine {
+  final String text;
+  final Rect box;
+  final List<OcrWord> words;
+  const OcrScanLine(this.text, this.box, this.words);
+}
+
 /// On-device OCR via ML Kit Text Recognition v2 (bundled model, no network).
 class OcrService {
   OcrService._();
@@ -59,6 +75,24 @@ class OcrService {
       for (final line in block.lines) {
         if (line.text.trim().isEmpty) continue;
         lines.add(OcrLine(line.text, line.boundingBox));
+      }
+    }
+    return lines;
+  }
+
+  /// Like [imageLines] but with word-level boxes too.
+  static Future<List<OcrScanLine>> imageScan(
+      String path, TextRecognizer recognizer) async {
+    final result =
+        await recognizer.processImage(InputImage.fromFilePath(path));
+    final lines = <OcrScanLine>[];
+    for (final block in result.blocks) {
+      for (final line in block.lines) {
+        if (line.text.trim().isEmpty) continue;
+        lines.add(OcrScanLine(line.text, line.boundingBox, [
+          for (final e in line.elements)
+            if (e.text.trim().isNotEmpty) OcrWord(e.text, e.boundingBox)
+        ]));
       }
     }
     return lines;

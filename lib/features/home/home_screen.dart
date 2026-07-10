@@ -13,6 +13,7 @@ import '../crop/crop_pdf_screen.dart';
 import '../draw/draw_screen.dart';
 import '../highlight/highlight_screen.dart';
 import '../history/history_screen.dart';
+import '../id_card/id_card_screen.dart';
 import '../image_convert/image_convert_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
 import '../merge/merge_screen.dart';
@@ -84,6 +85,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const ImagesToPdfScreen();
       case Tool.scanToPdf:
         return const ImagesToPdfScreen(cameraMode: true);
+      case Tool.idCard:
+        return const IdCardScreen();
       case Tool.ocr:
         return const OcrScreen();
       case Tool.searchable:

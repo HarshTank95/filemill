@@ -113,6 +113,12 @@ enum Tool {
     ToolStyle([Color(0xFF1E88E5), Color(0xFF64C1FF)], Icons.picture_as_pdf_rounded),
     ToolCategory.create,
   ),
+  idCard(
+    'ID Card → PDF',
+    'Front & back, true size A4',
+    ToolStyle([Color(0xFF283593), Color(0xFF7986CB)], Icons.badge_rounded),
+    ToolCategory.create,
+  ),
   pdfToWord(
     'PDF → Word',
     'Editable .docx, on-device',

@@ -9,7 +9,9 @@ import 'package:image/image.dart' as img;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
 import 'package:filemill/core/services/docx.dart';
+import 'package:filemill/core/services/id_card_service.dart';
 import 'package:filemill/core/services/image_convert_service.dart';
+import 'package:filemill/core/services/ocr_service.dart';
 import 'package:filemill/core/services/pdf_service.dart';
 import 'package:filemill/core/services/scan_processor.dart';
 import 'package:filemill/core/models/tool.dart';
@@ -40,7 +42,7 @@ void main() {
   });
 
   test('every tool has a category and the toolset is complete', () {
-    expect(Tool.values.length, 21);
+    expect(Tool.values.length, 22);
     for (final t in Tool.values) {
       expect(ToolCategory.values.contains(t.category), isTrue);
     }
@@ -51,6 +53,84 @@ void main() {
     expect(Tool.viewer.matches('read'), isTrue);
     expect(Tool.protect.matches('password'), isTrue);
     expect(Tool.merge.matches('zzz'), isFalse);
+  });
+
+  test('id card: masks burn to black and compose yields a true-size A4',
+      () async {
+    // A white card-shaped image.
+    final card = img.Image(width: 320, height: 202);
+    img.fill(card, color: img.ColorRgb8(240, 240, 240));
+    final jpeg = Uint8List.fromList(img.encodeJpg(card));
+
+    final masked = await IdCardService.finalizeSide(
+      jpeg,
+      ScanFilter.original,
+      [const Rect.fromLTRB(0.25, 0.70, 0.75, 0.85)],
+    );
+    final out = img.decodeImage(masked)!;
+    // Inside the mask: black. Outside: still light.
+    final inside = out.getPixel((0.5 * out.width).round(),
+        (0.77 * out.height).round());
+    final outside = out.getPixel((0.5 * out.width).round(),
+        (0.2 * out.height).round());
+    expect(inside.r + inside.g + inside.b, lessThan(60));
+    expect(outside.r + outside.g + outside.b, greaterThan(600));
+
+    // Front + back on one A4 page.
+    final pdf = await IdCardService.compose([masked, masked]);
+    final doc = sf.PdfDocument(inputBytes: pdf);
+    expect(doc.pages.count, 1);
+    expect(doc.pages[0].size.width, closeTo(595, 2)); // A4 portrait, points
+    expect(doc.pages[0].size.height, closeTo(842, 2));
+    doc.dispose();
+
+    // A portrait capture is auto-rotated to landscape at intake.
+    final tall = img.Image(width: 202, height: 320);
+    img.fill(tall, color: img.ColorRgb8(240, 240, 240));
+    final normalized = await IdCardService.normalizeSide(
+        Uint8List.fromList(img.encodeJpg(tall)));
+    expect(normalized.width, greaterThan(normalized.height));
+    // And a manual rotate turns it back to portrait.
+    final rotated = await IdCardService.rotateSide(normalized.bytes);
+    expect(rotated.height, greaterThan(rotated.width));
+  });
+
+  test('id card: aadhaar auto-mask finds the number, skips VID, scores text',
+      () {
+    OcrWord w(String t, double x) =>
+        OcrWord(t, Rect.fromLTWH(x, 100, 50, 14));
+    // A card face: name line, Aadhaar number line, 16-digit VID line.
+    final lines = [
+      OcrScanLine('Tank Harsh', const Rect.fromLTWH(20, 40, 120, 14),
+          [w('Tank', 20), w('Harsh', 80)]),
+      OcrScanLine('9081 3820 0368', const Rect.fromLTWH(60, 100, 170, 14),
+          [w('9081', 60), w('3820', 120), w('0368', 180)]),
+      OcrScanLine(
+          'VID : 9134 5678 9012 3456',
+          const Rect.fromLTWH(20, 130, 260, 14),
+          [
+            w('VID', 20),
+            w(':', 45),
+            w('9134', 60),
+            w('5678', 120),
+            w('9012', 180),
+            w('3456', 240)
+          ]),
+    ];
+    final masks = IdCardService.aadhaarMasks(lines, 320.0, 202.0);
+    // Exactly one mask — over the FIRST 8 digits, not the VID, not the name.
+    expect(masks.length, 1);
+    final m = masks.first;
+    expect(m.left, lessThan(60 / 320)); // starts at/before first group
+    expect(m.right, greaterThan(170 / 320)); // covers second group
+    expect(m.right, lessThan(180 / 320 + 0.02)); // stops before third group
+    expect(m.top, closeTo(100 / 202, 0.03));
+
+    // Orientation scoring: real words beat sideways-OCR garbage.
+    expect(
+        IdCardService.textScore(
+            ['Government of India', 'Tank Harsh Pareshkumar']),
+        greaterThan(IdCardService.textScore(['|l', 'i)', 'm', '..'])));
   });
 
   test('scan processor: identity warp keeps size, B&W output is binary',

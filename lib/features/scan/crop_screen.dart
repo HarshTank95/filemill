@@ -11,7 +11,12 @@ import '../../ui/theme.dart';
 /// JPEG bytes, or null if discarded.
 class CropScreen extends StatefulWidget {
   final Uint8List original;
-  const CropScreen({super.key, required this.original});
+
+  /// Look applied to the corrected output. ID mode passes [ScanFilter.original]
+  /// so the user can choose the final look later without re-cropping.
+  final ScanFilter filter;
+  const CropScreen(
+      {super.key, required this.original, this.filter = ScanFilter.enhanced});
 
   @override
   State<CropScreen> createState() => _CropScreenState();
@@ -47,7 +52,7 @@ class _CropScreenState extends State<CropScreen> {
       task: () => ScanProcessor.process(ScanJob(
         bytes: widget.original,
         corners: corners,
-        filter: ScanFilter.enhanced,
+        filter: widget.filter,
       )),
     );
     if (bytes != null && mounted) Navigator.of(context).pop(bytes);

@@ -271,6 +271,11 @@ List<double> _homography(List<Offset> src, List<Offset> dst) {
   return [for (var r = 0; r < 8; r++) a[r][8]];
 }
 
+/// Public entry so other services (ID card composer) can reuse the exact
+/// same print-style filters on raw RGB buffers.
+void applyScanFilter(Uint8List rgb, int w, int h, ScanFilter filter) =>
+    _applyFilter(rgb, w, h, filter);
+
 void _applyFilter(Uint8List rgb, int w, int h, ScanFilter filter) {
   switch (filter) {
     case ScanFilter.original:
