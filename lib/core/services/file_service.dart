@@ -58,6 +58,16 @@ class FileService {
     return _toItems(result);
   }
 
+  /// Files the Metadata Cleaner can inspect.
+  static Future<List<PickedItem>> pickInspectables() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'pptx'],
+      allowMultiple: false,
+    );
+    return _toItems(result);
+  }
+
   static Future<List<PickedItem>> pickImages({bool multiple = true}) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,

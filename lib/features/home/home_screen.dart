@@ -18,6 +18,7 @@ import '../id_card/id_card_screen.dart';
 import '../image_convert/image_convert_screen.dart';
 import '../images_to_pdf/images_to_pdf_screen.dart';
 import '../merge/merge_screen.dart';
+import '../metadata/metadata_screen.dart';
 import '../ocr/ocr_screen.dart';
 import '../organize/organize_screen.dart';
 import '../pdf_to_images/pdf_to_images_screen.dart';
@@ -74,6 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const ProtectScreen();
       case Tool.compress:
         return const CompressScreen();
+      case Tool.metadata:
+        return const MetadataScreen();
       case Tool.watermark:
         return const WatermarkScreen();
       case Tool.highlight:

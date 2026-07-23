@@ -13,6 +13,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:filemill/core/services/docx.dart';
 import 'package:filemill/core/services/id_card_service.dart';
 import 'package:filemill/core/services/image_convert_service.dart';
+import 'package:filemill/core/services/metadata_service.dart';
 import 'package:filemill/core/services/ocr_service.dart';
 import 'package:filemill/core/services/pdf_compare_service.dart';
 import 'package:filemill/core/services/pdf_service.dart';
@@ -45,7 +46,7 @@ void main() {
   });
 
   test('every tool has a category and the toolset is complete', () {
-    expect(Tool.values.length, 23);
+    expect(Tool.values.length, 24);
     for (final t in Tool.values) {
       expect(ToolCategory.values.contains(t.category), isTrue);
     }
@@ -134,6 +135,133 @@ void main() {
         IdCardService.textScore(
             ['Government of India', 'Tank Harsh Pareshkumar']),
         greaterThan(IdCardService.textScore(['|l', 'i)', 'm', '..'])));
+  });
+
+  group('metadata cleaner: plant -> clean -> prove absent in raw bytes', () {
+    bool rawHas(Uint8List bytes, String needle) {
+      final n = needle.codeUnits;
+      outer:
+      for (var i = 0; i <= bytes.length - n.length; i++) {
+        for (var j = 0; j < n.length; j++) {
+          if (bytes[i + j] != n[j]) continue outer;
+        }
+        return true;
+      }
+      return false;
+    }
+
+    test('jpeg: exif stripped losslessly, orientation-consistent', () async {
+      final im = img.Image(width: 24, height: 16);
+      img.fill(im, color: img.ColorRgb8(10, 200, 30));
+      im.exif.imageIfd['Make'] = 'TestCam';
+      im.exif.imageIfd['Artist'] = 'Harsh Tank';
+      final jpeg = Uint8List.fromList(img.encodeJpg(im));
+      expect(rawHas(jpeg, 'TestCam'), isTrue);
+      expect(rawHas(jpeg, 'Harsh Tank'), isTrue);
+
+      final report = await MetadataService.inspect(jpeg);
+      expect(report.kind, 'JPEG photo');
+      expect(report.findings.any((f) => f.value.contains('TestCam')), isTrue);
+
+      final cleaned = await MetadataService.clean(jpeg);
+      expect(rawHas(cleaned, 'TestCam'), isFalse);
+      expect(rawHas(cleaned, 'Harsh Tank'), isFalse);
+      final after = await MetadataService.inspect(cleaned);
+      expect(after.findings, isEmpty);
+
+      // Lossless: decoded pixels and orientation-consistent dims match.
+      final a = img.decodeJpg(jpeg)!;
+      final b = img.decodeJpg(cleaned)!;
+      expect(b.width, a.width);
+      expect(b.height, a.height);
+      expect(b.getBytes(order: img.ChannelOrder.rgb),
+          a.getBytes(order: img.ChannelOrder.rgb));
+    });
+
+    test('png: text chunks stripped, pixels untouched', () async {
+      final im = img.Image(width: 12, height: 12, textData: {
+        'Author': 'Harsh Tank',
+        'Software': 'SecretTool',
+      });
+      img.fill(im, color: img.ColorRgb8(200, 10, 30));
+      final png = Uint8List.fromList(img.encodePng(im));
+      final report = await MetadataService.inspect(png);
+      expect(
+          report.findings
+              .any((f) => f.severity == MetaSeverity.critical &&
+                  f.value == 'Harsh Tank'),
+          isTrue);
+
+      final cleaned = await MetadataService.clean(png);
+      expect(rawHas(cleaned, 'Harsh Tank'), isFalse);
+      expect(rawHas(cleaned, 'SecretTool'), isFalse);
+      expect((await MetadataService.inspect(cleaned)).findings, isEmpty);
+      final b = img.decodePng(cleaned)!;
+      expect(b.getBytes(order: img.ChannelOrder.rgb),
+          img.decodePng(png)!.getBytes(order: img.ChannelOrder.rgb));
+    });
+
+    test('pdf: rebuild removes identity from raw bytes, text intact',
+        () async {
+      final doc = sf.PdfDocument();
+      doc.pages.add().graphics.drawString('confidential body text',
+          sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 12));
+      doc.documentInformation.author = 'Harsh Tank';
+      doc.documentInformation.title = 'Secret Contract';
+      doc.documentInformation.creator = 'Microsoft Word';
+      final pdf = Uint8List.fromList(doc.saveSync());
+      doc.dispose();
+
+      final report = await MetadataService.inspect(pdf);
+      expect(report.findings.any((f) => f.value == 'Harsh Tank'), isTrue);
+
+      final cleaned = await MetadataService.clean(pdf);
+      expect(rawHas(cleaned, 'Harsh Tank'), isFalse);
+      expect(rawHas(cleaned, 'Secret Contract'), isFalse);
+      expect(rawHas(cleaned, 'Microsoft Word'), isFalse);
+
+      final check = sf.PdfDocument(inputBytes: cleaned);
+      expect(sf.PdfTextExtractor(check).extractText(startPageIndex: 0),
+          contains('confidential body text'));
+      check.dispose();
+    });
+
+    test('docx: docProps scrubbed, content byte-identical', () async {
+      const docXml = '<w:document>real content here</w:document>';
+      const coreXml = '<cp:coreProperties '
+          'xmlns:cp="x" xmlns:dc="y" xmlns:dcterms="z">'
+          '<dc:creator>Harsh Tank</dc:creator>'
+          '<cp:lastModifiedBy>Someone Else</cp:lastModifiedBy>'
+          '<cp:revision>7</cp:revision></cp:coreProperties>';
+      const appXml = '<Properties><Application>Microsoft Word</Application>'
+          '<Company>Casepoint LLC</Company></Properties>';
+      final arch = Archive()
+        ..addFile(ArchiveFile(
+            'word/document.xml', docXml.length, docXml.codeUnits))
+        ..addFile(
+            ArchiveFile('docProps/core.xml', coreXml.length, coreXml.codeUnits))
+        ..addFile(
+            ArchiveFile('docProps/app.xml', appXml.length, appXml.codeUnits))
+        ..addFile(ArchiveFile('docProps/custom.xml', 5, 'x1234'.codeUnits));
+      final docx = Uint8List.fromList(ZipEncoder().encode(arch));
+
+      final report = await MetadataService.inspect(docx);
+      expect(report.kind, 'Word document');
+      expect(report.findings.any((f) => f.value == 'Harsh Tank'), isTrue);
+      expect(report.findings.any((f) => f.value == 'Casepoint LLC'), isTrue);
+
+      final cleaned = await MetadataService.clean(docx);
+      expect(rawHas(cleaned, 'Harsh Tank'), isFalse);
+      expect(rawHas(cleaned, 'Someone Else'), isFalse);
+      expect(rawHas(cleaned, 'Casepoint LLC'), isFalse);
+      final out = ZipDecoder().decodeBytes(cleaned);
+      expect(out.files.any((f) => f.name == 'docProps/custom.xml'), isFalse);
+      final content = String.fromCharCodes(out.files
+          .firstWhere((f) => f.name == 'word/document.xml')
+          .content as List<int>);
+      expect(content, docXml); // content untouched
+      expect((await MetadataService.inspect(cleaned)).findings, isEmpty);
+    });
   });
 
   test('compare pdfs: finds the exact planted changes and nothing else',

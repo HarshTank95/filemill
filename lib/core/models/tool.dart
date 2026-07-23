@@ -107,6 +107,12 @@ enum Tool {
     ToolStyle([Color(0xFFEF6C00), Color(0xFFFFA751)], Icons.compress_rounded),
     ToolCategory.secure,
   ),
+  metadata(
+    'Metadata Cleaner',
+    'See & scrub hidden file data',
+    ToolStyle([Color(0xFF2E7D32), Color(0xFF81C784)], Icons.privacy_tip_rounded),
+    ToolCategory.secure,
+  ),
   scanToPdf(
     'Scan → PDF',
     'Camera pages into a PDF',
